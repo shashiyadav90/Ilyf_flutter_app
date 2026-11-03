@@ -12,6 +12,7 @@ import '../../pages/auth/login_page.dart';
 import '../../pages/auth/login_success_page.dart';
 import '../../pages/news/news_page.dart';
 import '../../pages/overview/overview_page.dart';
+import '../../pages/membership/membership_page.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: RouteNames.chat,
@@ -30,7 +31,7 @@ final GoRouter appRouter = GoRouter(
       path: '/overview',
       builder: (context, state) => const OverviewPage(),
     ),
-    GoRoute(path: '/members', builder: (context, state) => const MembersPage()),
+    // GoRoute(path: '/members', builder: (context, state) => const MembersPage()),
     GoRoute(
       path: '/members/:id',
       builder: (context, state) =>
@@ -38,10 +39,10 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(
       path: '/membership',
-      builder: (context, state) => const ComingSoonPage(title: 'Membership'),
+      builder: (context, state) => const MembershipPage(),
     ),
-    GoRoute(path: '/offers', builder: (context, state) => const OffersPage()),
-    GoRoute(path: '/news', builder: (context, state) => const NewsPage()),
+    // GoRoute(path: '/offers', builder: (context, state) => const OffersPage()),
+    // GoRoute(path: '/news', builder: (context, state) => const NewsPage()),
     GoRoute(
       path: '/news/new',
       builder: (context, state) => const ComingSoonPage(title: 'Create News'),

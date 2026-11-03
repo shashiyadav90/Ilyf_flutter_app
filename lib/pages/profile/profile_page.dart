@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:typed_data';
 
 import '../../components/app_header.dart';
 import '../../components/bottom_nav.dart';
@@ -37,6 +38,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final _facebook = TextEditingController();
   final _linkedin = TextEditingController();
   final _otp = TextEditingController();
+  final Map<String, Uint8List> _localMediaPreviews = {};
 
   Map<String, dynamic>? _profile;
   List<Map<String, dynamic>> _offers = [];
@@ -402,6 +404,16 @@ class _ProfilePageState extends State<ProfilePage> {
 
     final file = await _pickFile(extensions: extensions);
     if (file == null) return;
+
+    if (isImage || kind == 'video') {
+      final bytes = await file.readAsBytes();
+
+      if (!mounted) return;
+
+      setState(() {
+        _localMediaPreviews[kind] = bytes;
+      });
+    }
 
     setState(() {
       _mediaBusy = true;
@@ -817,8 +829,12 @@ class _ProfilePageState extends State<ProfilePage> {
     required List<String> extensionsLabel,
   }) {
     final canAdd = items.length < limit;
+    final isImage = kind == 'image';
+    final isVideo = kind == 'video';
+    final isVisualMedia = isImage || isVideo;
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.only(bottom: 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -829,7 +845,11 @@ class _ProfilePageState extends State<ProfilePage> {
               Expanded(
                 child: Text(
                   '$title (${items.length}/$limit)',
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    color: ink,
+                  ),
                 ),
               ),
               TextButton.icon(
@@ -841,100 +861,255 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ],
           ),
+
           if (items.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                'No files added yet.',
-                style: TextStyle(color: muted),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 22),
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: line),
               ),
+              child: Column(
+                children: [
+                  Icon(
+                    isImage
+                        ? Icons.add_photo_alternate_outlined
+                        : isVideo
+                        ? Icons.video_library_outlined
+                        : Icons.description_outlined,
+                    size: 30,
+                    color: muted,
+                  ),
+                  const SizedBox(height: 7),
+                  Text(
+                    'No ${title.toLowerCase()} added yet',
+                    style: const TextStyle(color: muted, fontSize: 12),
+                  ),
+                ],
+              ),
+            )
+          else if (isVisualMedia)
+            LayoutBuilder(
+              builder: (context, constraints) {
+                const spacing = 10.0;
+                final boxWidth = (constraints.maxWidth - spacing * 2) / 3;
+
+                return SizedBox(
+                  height: 142,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: items.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: spacing),
+                    itemBuilder: (context, index) {
+                      final item = items[index];
+                      final url = _mediaItemUrl(item);
+                      final name = _mediaItemTitle(item);
+
+                      return SizedBox(
+                        width: boxWidth,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(13),
+                                    child: isImage
+                                        ? (_localMediaPreviews[kind] != null
+                                              ? Image.memory(
+                                                  _localMediaPreviews[kind]!,
+                                                  fit: BoxFit.cover,
+                                                  width: double.infinity,
+                                                  height: double.infinity,
+                                                )
+                                              : Image.network(
+                                                  _mediaUrl(url),
+                                                  fit: BoxFit.cover,
+                                                  width: double.infinity,
+                                                  height: double.infinity,
+                                                  errorBuilder: (_, __, ___) =>
+                                                      Container(
+                                                        color: bg,
+                                                        child: const Icon(
+                                                          Icons
+                                                              .broken_image_outlined,
+                                                          color: muted,
+                                                        ),
+                                                      ),
+                                                ))
+                                        : Container(
+                                            color: const Color(0xFF32166D),
+                                            child: const Center(
+                                              child: Icon(
+                                                Icons.play_circle_fill,
+                                                color: Colors.white,
+                                                size: 42,
+                                              ),
+                                            ),
+                                          ),
+                                  ),
+
+                                  // Preview actions
+                                  Positioned(
+                                    top: 5,
+                                    right: 5,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        _mediaActionButton(
+                                          icon: Icons.swap_horiz,
+                                          color: purpleDark,
+                                          onTap: _mediaBusy
+                                              ? null
+                                              : () => _uploadMedia(
+                                                  kind,
+                                                  replaceIndex: index,
+                                                ),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        _mediaActionButton(
+                                          icon: Icons.delete_outline,
+                                          color: Colors.red,
+                                          onTap: _mediaBusy
+                                              ? null
+                                              : () => _removeMedia(kind, index),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  if (isVideo && url.isNotEmpty)
+                                    Positioned(
+                                      bottom: 5,
+                                      right: 5,
+                                      child: IconButton(
+                                        visualDensity: VisualDensity.compact,
+                                        style: IconButton.styleFrom(
+                                          backgroundColor: Colors.black
+                                              .withValues(alpha: 0.55),
+                                          foregroundColor: Colors.white,
+                                        ),
+                                        onPressed: () =>
+                                            _openLink(_mediaUrl(url)),
+                                        icon: const Icon(
+                                          Icons.open_in_new,
+                                          size: 16,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              name.isEmpty ? '$title ${index + 1}' : name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: ink,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
             )
           else
             ...List.generate(items.length, (index) {
               final item = items[index];
-              final url = _mediaItemUrl(item);
               final name = _mediaItemTitle(item);
-              final isImage = kind == 'image';
+              final url = _mediaItemUrl(item);
+
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(9),
                 decoration: BoxDecoration(
                   color: bg,
-                  borderRadius: BorderRadius.circular(13),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: line),
                 ),
                 child: Row(
                   children: [
-                    if (isImage && url.isNotEmpty)
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(9),
-                        child: Image.network(
-                          _mediaUrl(url),
-                          width: 58,
-                          height: 58,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const SizedBox(
-                            width: 58,
-                            height: 58,
-                            child: Icon(Icons.broken_image_outlined),
-                          ),
-                        ),
-                      )
-                    else
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          kind == 'document'
-                              ? Icons.description_outlined
-                              : Icons.play_circle_outline,
-                          color: purple,
-                        ),
-                      ),
+                    const Icon(
+                      Icons.description_outlined,
+                      color: purple,
+                      size: 28,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        name.isEmpty ? '$title ${index + 1}' : name,
-                        maxLines: 2,
+                        name.isEmpty ? 'Document ${index + 1}' : name,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                    if (url.isNotEmpty)
-                      IconButton(
-                        tooltip: 'Open',
-                        onPressed: () => _openLink(_mediaUrl(url)),
-                        icon: const Icon(Icons.open_in_new, color: purpleDark),
-                      ),
                     IconButton(
-                      tooltip: 'Replace',
                       onPressed: _mediaBusy
                           ? null
                           : () => _uploadMedia(kind, replaceIndex: index),
                       icon: const Icon(Icons.swap_horiz, color: purpleDark),
                     ),
                     IconButton(
-                      tooltip: 'Remove',
                       onPressed: _mediaBusy
                           ? null
                           : () => _removeMedia(kind, index),
                       icon: const Icon(Icons.delete_outline, color: Colors.red),
                     ),
+                    if (url.isNotEmpty)
+                      IconButton(
+                        onPressed: () => _openLink(_mediaUrl(url)),
+                        icon: const Icon(Icons.open_in_new, color: purpleDark),
+                      ),
                   ],
                 ),
               );
             }),
+
           if (_uploadingKind == kind && _mediaBusy)
-            const LinearProgressIndicator(color: purple),
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: LinearProgressIndicator(color: purple),
+            ),
+
+          const SizedBox(height: 5),
           Text(
             'Accepted: ${extensionsLabel.join(', ')}',
             style: const TextStyle(fontSize: 11, color: muted),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _mediaActionButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback? onTap,
+  }) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.95),
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: SizedBox(
+          width: 29,
+          height: 29,
+          child: Icon(icon, size: 17, color: color),
+        ),
       ),
     );
   }

@@ -382,7 +382,7 @@ class _OverviewPageState extends State<OverviewPage> {
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: 1.65,
+            childAspectRatio: 1.30,
             children: [
               _statCard(
                 'Total Enquiries',
