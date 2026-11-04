@@ -427,6 +427,34 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ],
       ),
+      const SizedBox(height: 14),
+
+      GestureDetector(
+        onTap: () {
+          context.push('/membership?next=${Uri.encodeComponent(_nextRoute)}');
+        },
+        child: const Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: 'New to ILYF? ',
+                style: TextStyle(color: _ink2, fontSize: 13),
+              ),
+              TextSpan(
+                text: 'Become a member',
+                style: TextStyle(
+                  color: _violet,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  decoration: TextDecoration.underline,
+                  decorationColor: _violet,
+                ),
+              ),
+            ],
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ),
     ],
   );
 

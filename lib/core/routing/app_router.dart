@@ -31,7 +31,7 @@ final GoRouter appRouter = GoRouter(
       path: '/overview',
       builder: (context, state) => const OverviewPage(),
     ),
-    // GoRoute(path: '/members', builder: (context, state) => const MembersPage()),
+    GoRoute(path: '/members', builder: (context, state) => const MembersPage()),
     GoRoute(
       path: '/members/:id',
       builder: (context, state) =>
@@ -41,8 +41,8 @@ final GoRouter appRouter = GoRouter(
       path: '/membership',
       builder: (context, state) => const MembershipPage(),
     ),
-    // GoRoute(path: '/offers', builder: (context, state) => const OffersPage()),
-    // GoRoute(path: '/news', builder: (context, state) => const NewsPage()),
+    GoRoute(path: '/offers', builder: (context, state) => const OffersPage()),
+    GoRoute(path: '/news', builder: (context, state) => const NewsPage()),
     GoRoute(
       path: '/news/new',
       builder: (context, state) => const ComingSoonPage(title: 'Create News'),

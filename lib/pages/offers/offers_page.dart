@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:convert';
 
 import '../../core/config/api_config.dart';
 import '../../components/app_header.dart';
@@ -71,34 +72,70 @@ class _OffersPageState extends State<OffersPage> {
 
     try {
       final response = await ApiConfig.dio.get('/offers');
-      final data = response.data;
 
-      dynamic rows = data;
+      debugPrint('========== OFFERS API ==========');
+      debugPrint('STATUS: ${response.statusCode}');
+      debugPrint('RESPONSE TYPE: ${response.data.runtimeType}');
+      debugPrint('RESPONSE DATA: ${response.data}');
 
-      if (data is Map) {
-        rows =
-            data['offers'] ??
-            data['data'] ??
-            data['results'] ??
-            data['items'] ??
-            data['data']?['offers'] ??
-            [];
+      dynamic data = response.data;
+
+      // Handle JSON returned as a string.
+      if (data is String) {
+        data = jsonDecode(data);
       }
 
-      if (rows is! List) {
-        throw Exception('Unexpected offers response format.');
+      dynamic rows;
+
+      if (data is List) {
+        rows = data;
+      } else if (data is Map) {
+        if (data['offers'] is List) {
+          rows = data['offers'];
+        } else if (data['results'] is List) {
+          rows = data['results'];
+        } else if (data['items'] is List) {
+          rows = data['items'];
+        } else if (data['data'] is List) {
+          rows = data['data'];
+        } else if (data['data'] is Map && data['data']['offers'] is List) {
+          rows = data['data']['offers'];
+        } else {
+          rows = [];
+        }
+      } else {
+        rows = [];
+      }
+
+      final List<Map<String, dynamic>> fetchedOffers = [];
+
+      if (rows is List) {
+        for (final item in rows) {
+          if (item is Map) {
+            fetchedOffers.add(Map<String, dynamic>.from(item));
+          }
+        }
+      }
+
+      debugPrint('TOTAL OFFERS RECEIVED: ${fetchedOffers.length}');
+
+      for (final offer in fetchedOffers) {
+        debugPrint('OFFER TITLE: ${offer['title']}');
+        debugPrint('OFFER BANNER: ${offer['bannerUrl']}');
       }
 
       if (!mounted) return;
 
       setState(() {
-        _offers = rows
-            .whereType<Map>()
-            .map((item) => Map<String, dynamic>.from(item))
-            .toList();
+        _offers = fetchedOffers;
         _loading = false;
+        _error = null;
       });
     } on DioException catch (e) {
+      debugPrint('OFFERS API ERROR: ${e.message}');
+      debugPrint('STATUS: ${e.response?.statusCode}');
+      debugPrint('ERROR RESPONSE: ${e.response?.data}');
+
       if (!mounted) return;
 
       if (e.response?.statusCode == 401) {
@@ -108,14 +145,19 @@ class _OffersPageState extends State<OffersPage> {
 
       setState(() {
         _loading = false;
-        _error = e.message ?? 'Could not load offers. Please try again.';
+        _error = e.response?.data is Map
+            ? (e.response?.data['message']?.toString() ??
+                  'Could not load offers.')
+            : 'Could not load offers. Please try again.';
       });
     } catch (e) {
+      debugPrint('OFFERS PARSING ERROR: $e');
+
       if (!mounted) return;
 
       setState(() {
         _loading = false;
-        _error = e.toString().replaceFirst('Exception: ', '');
+        _error = e.toString();
       });
     }
   }
@@ -141,6 +183,22 @@ class _OffersPageState extends State<OffersPage> {
       return _first([value['url'], value['src'], value['secure_url']]);
     }
     return '';
+  }
+
+  String _mediaUrl(String value) {
+    final raw = value.trim();
+
+    if (raw.isEmpty) return '';
+
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      return raw;
+    }
+
+    final baseUri = Uri.parse(ApiConfig.baseUrl);
+
+    final origin = baseUri.replace(path: '/', query: null, fragment: null);
+
+    return origin.resolve(raw).toString();
   }
 
   String _id(Map<String, dynamic> offer, int index) =>
@@ -202,9 +260,13 @@ class _OffersPageState extends State<OffersPage> {
 
   String _cover(Map<String, dynamic> offer) {
     dynamic media = offer['media'];
-    if (media is List && media.isNotEmpty) media = media.first;
+
+    if (media is List && media.isNotEmpty) {
+      media = media.first;
+    }
 
     return _first([
+      _image(offer['bannerUrl']),
       _image(offer['coverImage']),
       _image(offer['imageUrl']),
       _image(offer['image']),
@@ -888,7 +950,7 @@ class _OffersPageState extends State<OffersPage> {
                   radius: 21,
                   backgroundColor: const Color(0xFFF0E8FF),
                   backgroundImage: avatar.isNotEmpty
-                      ? NetworkImage(avatar)
+                      ? NetworkImage(_mediaUrl(avatar))
                       : null,
                   child: avatar.isEmpty
                       ? Text(
@@ -978,9 +1040,26 @@ class _OffersPageState extends State<OffersPage> {
               children: [
                 if (cover.isNotEmpty)
                   Image.network(
-                    cover,
+                    _mediaUrl(cover), // IMPORTANT: use _mediaUrl here
+                    width: double.infinity,
+                    height: 225,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildCoverArt(category),
+                    gaplessPlayback: true,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) {
+                        return child;
+                      }
+
+                      return const Center(
+                        child: CircularProgressIndicator(color: _purple),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      debugPrint('IMAGE RENDER ERROR: $error');
+                      debugPrint('IMAGE URL: ${_mediaUrl(cover)}');
+
+                      return _buildCoverArt(category);
+                    },
                   )
                 else
                   _buildCoverArt(category),
@@ -1367,9 +1446,9 @@ class _OffersPageState extends State<OffersPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'No offers Yet, Add an offer from your profile',
-            style: TextStyle(
+          Text(
+            _error ?? 'Could not load offers.',
+            style: const TextStyle(
               color: Color(0xFF7E3448),
               fontWeight: FontWeight.w800,
             ),

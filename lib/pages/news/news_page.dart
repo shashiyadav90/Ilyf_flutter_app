@@ -107,7 +107,7 @@ class _NewsPageState extends State<NewsPage> {
       var result = feed;
       if (_staff) {
         try {
-          final mineResponse = await _dio.get('/me/news');
+          final mineResponse = await _dio.get('/news');
           final byId = <String, Map<String, dynamic>>{};
           for (final item in [...feed, ..._asRows(mineResponse.data)]) {
             final id = _id(item);
@@ -137,7 +137,7 @@ class _NewsPageState extends State<NewsPage> {
       _eventsError = null;
     });
     try {
-      final response = await _dio.get('/me/events');
+      final response = await _dio.get('/events');
       if (mounted) setState(() => _events = _asRows(response.data));
     } on DioException catch (e) {
       if (mounted)
@@ -614,13 +614,21 @@ class _NewsPageState extends State<NewsPage> {
 
   String _mediaUrl(String value) {
     final raw = value.trim();
-    if (raw.startsWith('http') ||
+
+    if (raw.isEmpty) return '';
+
+    if (raw.startsWith('http://') ||
+        raw.startsWith('https://') ||
         raw.startsWith('data:') ||
-        raw.startsWith('blob:') ||
-        raw.startsWith('/'))
+        raw.startsWith('blob:')) {
       return raw;
-    if (raw.startsWith('members/')) return '/api/media/$raw';
-    return raw;
+    }
+
+    final baseUri = Uri.parse(ApiConfig.baseUrl);
+
+    final origin = baseUri.replace(path: '/', query: null, fragment: null);
+
+    return origin.resolve(raw).toString();
   }
 
   Widget _avatar(String name, String image) {
