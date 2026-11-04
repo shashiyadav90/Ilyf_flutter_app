@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter/material.dart';
 
 const Color ilyfPurple = Color(0xFF6C3FD1);
 const Color ilyfInk = Color(0xFF1A1433);
@@ -53,25 +54,13 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
               ],
 
               // ILYF logo
-              Container(
-                width: 43,
-                height: 43,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      Color(0xFF7B4DE0),
-                      Color(0xFF5A34C6),
-                      Color(0xFF3B63E8),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.hub_rounded,
-                  color: Colors.white,
-                  size: 25,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset(
+                  'lib/images/ilyf_logo.png',
+                  width: 48,
+                  height: 48,
+                  fit: BoxFit.cover,
                 ),
               ),
 

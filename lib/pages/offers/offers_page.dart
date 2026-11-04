@@ -190,7 +190,10 @@ class _OffersPageState extends State<OffersPage> {
 
     if (raw.isEmpty) return '';
 
-    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+    if (raw.startsWith('http://') ||
+        raw.startsWith('https://') ||
+        raw.startsWith('data:') ||
+        raw.startsWith('blob:')) {
       return raw;
     }
 
@@ -198,7 +201,9 @@ class _OffersPageState extends State<OffersPage> {
 
     final origin = baseUri.replace(path: '/', query: null, fragment: null);
 
-    return origin.resolve(raw).toString();
+    final path = raw.startsWith('members/') ? '/api/media/$raw' : raw;
+
+    return origin.resolve(path).toString();
   }
 
   String _id(Map<String, dynamic> offer, int index) =>
@@ -281,6 +286,7 @@ class _OffersPageState extends State<OffersPage> {
     return _first([
       _image(author['avatar']),
       _image(author['photo']),
+      _image(author['photoUrl']),
       _image(author['profileImage']),
       _image(author['profilePhoto']),
       _image(offer['authorAvatar']),
@@ -596,7 +602,7 @@ class _OffersPageState extends State<OffersPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Explore offers',
+                        'Explore Listings',
                         style: TextStyle(
                           color: _ink,
                           fontSize: 22,
@@ -739,7 +745,7 @@ class _OffersPageState extends State<OffersPage> {
                 ),
                 const SizedBox(height: 15),
                 const Text(
-                  'Good offers.\nGreat connections.',
+                  'Good Listings.\nGreat connections.',
                   style: TextStyle(
                     color: _ink,
                     fontSize: 29,
@@ -792,7 +798,7 @@ class _OffersPageState extends State<OffersPage> {
               ),
               icon: const Icon(Icons.add_rounded, size: 17),
               label: const Text(
-                'Post an offer',
+                'Post a Listing',
                 style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
               ),
             ),
@@ -1285,7 +1291,7 @@ class _OffersPageState extends State<OffersPage> {
                         ),
                       ),
                       child: const Text(
-                        'Ask about offer ↗',
+                        'Ask about Listing ↗',
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
@@ -1465,7 +1471,7 @@ class _OffersPageState extends State<OffersPage> {
   }
 
   Widget _buildEmpty() {
-    final filtered = _query.isNotEmpty || _filter != 'All offers';
+    final filtered = _query.isNotEmpty || _filter != 'All Listings';
 
     return Container(
       width: double.infinity,

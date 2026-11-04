@@ -198,6 +198,26 @@ class _NewsPageState extends State<NewsPage> {
     return DateTime.tryParse(value.toString())?.toLocal();
   }
 
+  String _eventImage(Map<String, dynamic> event) {
+    final image =
+        event['bannerUrl'] ??
+        event['imageUrl'] ??
+        event['image_url'] ??
+        event['coverImage'] ??
+        event['posterUrl'] ??
+        event['image'] ??
+        event['banner'] ??
+        '';
+
+    if (image is Map) {
+      final url = image['url'] ?? image['src'] ?? image['secure_url'] ?? '';
+
+      return _mediaUrl(url.toString());
+    }
+
+    return _mediaUrl(image.toString());
+  }
+
   DateTime? _eventStart(Map<String, dynamic> e) {
     final raw =
         e['startsAt'] ??
@@ -761,6 +781,7 @@ class _NewsPageState extends State<NewsPage> {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: _EventTile(
                   event: e.value,
+                  imageUrl: _eventImage(e.value),
                   variant: e.key == 0 ? 'next' : 'row',
                   start: _eventStart(e.value),
                   end: _eventEnd(e.value),
@@ -780,6 +801,7 @@ class _NewsPageState extends State<NewsPage> {
                 padding: const EdgeInsets.only(bottom: 12),
                 child: _EventTile(
                   event: e.value,
+                  imageUrl: _eventImage(e.value),
                   variant: e.key == 0 ? 'last' : 'row',
                   start: _eventStart(e.value),
                   end: _eventEnd(e.value),
@@ -906,6 +928,7 @@ class _NewsPageState extends State<NewsPage> {
 class _EventTile extends StatefulWidget {
   const _EventTile({
     required this.event,
+    required this.imageUrl,
     required this.variant,
     required this.start,
     required this.end,
@@ -915,6 +938,7 @@ class _EventTile extends StatefulWidget {
   });
 
   final Map<String, dynamic> event;
+  final String imageUrl;
   final String variant;
   final DateTime? start;
   final DateTime? end;
@@ -1161,6 +1185,54 @@ class _EventTileState extends State<_EventTile> {
                   if (_venue.isNotEmpty)
                     _chip(Icons.location_on_outlined, _venue, dark),
                 ],
+              ),
+            ),
+          if (widget.imageUrl.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(15, 12, 15, 5),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Image.network(
+                    widget.imageUrl,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+
+                      return Container(
+                        color: _mist,
+                        alignment: Alignment.center,
+                        child: const CircularProgressIndicator(color: _violet),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      debugPrint('EVENT IMAGE ERROR: $error');
+                      debugPrint('EVENT IMAGE URL: ${widget.imageUrl}');
+
+                      return Container(
+                        color: _mist,
+                        alignment: Alignment.center,
+                        child: const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.image_not_supported_outlined,
+                              color: _violet,
+                              size: 35,
+                            ),
+                            SizedBox(height: 6),
+                            Text(
+                              'Event image unavailable',
+                              style: TextStyle(color: _muted, fontSize: 11),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ),
             ),
           if (_expanded) ...[
