@@ -1471,7 +1471,7 @@ class _OffersPageState extends State<OffersPage> {
   }
 
   Widget _buildEmpty() {
-    final filtered = _query.isNotEmpty || _filter != 'All Listings';
+    final filtered = _query.isNotEmpty || _filter != 'All offers';
 
     return Container(
       width: double.infinity,
@@ -1498,7 +1498,7 @@ class _OffersPageState extends State<OffersPage> {
           const SizedBox(height: 16),
           Text(
             filtered
-                ? 'No offers match that search'
+                ? 'No listings match that search'
                 : 'Your community board is ready',
             textAlign: TextAlign.center,
             style: const TextStyle(
