@@ -63,15 +63,14 @@ class _MembersPageState extends State<MembersPage> {
 
   // GET /api/businesses
   Future<List<Member>> _fetchMembers() async {
-    final response = await ApiConfig.dio.get<dynamic>(
-      directoryEndpoint,
-    );
+    final response = await ApiConfig.dio.get<dynamic>(directoryEndpoint);
 
     final body = response.data;
     dynamic list = body;
 
     if (body is Map) {
-      list = body['data'] ??
+      list =
+          body['data'] ??
           body['businesses'] ??
           body['members'] ??
           body['listings'] ??
@@ -79,7 +78,8 @@ class _MembersPageState extends State<MembersPage> {
           body['items'];
 
       if (list is Map) {
-        list = list['data'] ??
+        list =
+            list['data'] ??
             list['businesses'] ??
             list['members'] ??
             list['listings'] ??
@@ -95,19 +95,13 @@ class _MembersPageState extends State<MembersPage> {
 
     return list
         .whereType<Map>()
-        .map(
-          (item) => Member.fromJson(
-            Map<String, dynamic>.from(item),
-          ),
-        )
+        .map((item) => Member.fromJson(Map<String, dynamic>.from(item)))
         .toList();
   }
 
   // GET /api/businesses/filters
   Future<List<String>> _fetchChapterFilters() async {
-    final response = await ApiConfig.dio.get<dynamic>(
-      filtersEndpoint,
-    );
+    final response = await ApiConfig.dio.get<dynamic>(filtersEndpoint);
 
     final body = response.data;
     dynamic data = body;
@@ -117,7 +111,8 @@ class _MembersPageState extends State<MembersPage> {
     }
 
     if (data is Map) {
-      data = data['chapters'] ??
+      data =
+          data['chapters'] ??
           data['chapter'] ??
           data['chapterFilters'] ??
           data['locations'] ??
@@ -142,8 +137,7 @@ class _MembersPageState extends State<MembersPage> {
 
           return item.toString().trim();
         })
-        .where((chapter) =>
-            chapter.isNotEmpty && chapter != 'ILYF Trust')
+        .where((chapter) => chapter.isNotEmpty && chapter != 'ILYF Trust')
         .toSet()
         .toList();
   }
@@ -166,26 +160,17 @@ class _MembersPageState extends State<MembersPage> {
       try {
         apiChapters = await _fetchChapterFilters();
       } on DioException catch (e) {
-        debugPrint(
-          'Business filters API error: ${e.message}',
-        );
+        debugPrint('Business filters API error: ${e.message}');
       } catch (e) {
         debugPrint('Business filters parsing error: $e');
       }
 
       final liveChapters = loaded
           .map((member) => member.effectiveChapter.trim())
-          .where(
-            (chapter) =>
-                chapter.isNotEmpty && chapter != 'ILYF Trust',
-          )
+          .where((chapter) => chapter.isNotEmpty && chapter != 'ILYF Trust')
           .toSet();
 
-      final allChapters = {
-        ...apiChapters,
-        ...liveChapters,
-      }.toList()
-        ..sort();
+      final allChapters = {...apiChapters, ...liveChapters}.toList()..sort();
 
       if (!mounted) return;
 
@@ -194,9 +179,7 @@ class _MembersPageState extends State<MembersPage> {
 
         _chapters = [
           ...defaultChapters,
-          ...allChapters.where(
-            (chapter) => !defaultChapters.contains(chapter),
-          ),
+          ...allChapters.where((chapter) => !defaultChapters.contains(chapter)),
         ];
 
         // Reset selection if it is no longer available.
@@ -218,8 +201,8 @@ class _MembersPageState extends State<MembersPage> {
       setState(() {
         _error = e.response?.data is Map
             ? (e.response?.data['message']?.toString() ??
-                e.message ??
-                'Could not load members.')
+                  e.message ??
+                  'Could not load members.')
             : e.message ?? 'Could not load members.';
 
         _loading = false;
@@ -228,10 +211,7 @@ class _MembersPageState extends State<MembersPage> {
       if (!mounted) return;
 
       setState(() {
-        _error = e.toString().replaceFirst(
-          'FormatException: ',
-          '',
-        );
+        _error = e.toString().replaceFirst('FormatException: ', '');
         _loading = false;
       });
     }
@@ -243,7 +223,8 @@ class _MembersPageState extends State<MembersPage> {
 
     return sortMembers(
       _members.where((member) {
-        final matchesChapter = _selectedChapter == 'All' ||
+        final matchesChapter =
+            _selectedChapter == 'All' ||
             member.effectiveChapter == _selectedChapter;
 
         final searchable = [
@@ -257,48 +238,37 @@ class _MembersPageState extends State<MembersPage> {
           member.id,
         ].join(' ').toLowerCase();
 
-        return matchesChapter &&
-            (query.isEmpty || searchable.contains(query));
+        return matchesChapter && (query.isEmpty || searchable.contains(query));
       }).toList(),
     );
   }
 
   Future<void> _openSocial(String url, String label) async {
     if (url.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('$label link is not available.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('$label link is not available.')));
       return;
     }
 
-    final normalized =
-        url.startsWith('http://') || url.startsWith('https://')
-            ? url
-            : 'https://$url';
+    final normalized = url.startsWith('http://') || url.startsWith('https://')
+        ? url
+        : 'https://$url';
 
     final uri = Uri.tryParse(normalized);
 
     if (uri == null ||
-        !await launchUrl(
-          uri,
-          mode: LaunchMode.externalApplication,
-        )) {
+        !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not open $label link.'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not open $label link.')));
     }
   }
 
   void _openProfile(Member member) {
-    context.push(
-      '/members/${Uri.encodeComponent(member.id)}',
-    );
+    context.push('/members/${Uri.encodeComponent(member.id)}');
   }
 
   @override
@@ -306,9 +276,7 @@ class _MembersPageState extends State<MembersPage> {
     if (!_signedIn) {
       return const Scaffold(
         backgroundColor: Color(0xFFF4EFFF),
-        body: Center(
-          child: CircularProgressIndicator(color: purple),
-        ),
+        body: Center(child: CircularProgressIndicator(color: purple)),
       );
     }
 
@@ -322,30 +290,22 @@ class _MembersPageState extends State<MembersPage> {
           color: purple,
           onRefresh: _loadMembers,
           child: CustomScrollView(
-            keyboardDismissBehavior:
-                ScrollViewKeyboardDismissBehavior.onDrag,
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             slivers: [
               SliverToBoxAdapter(child: _hero()),
 
               SliverPersistentHeader(
                 pinned: true,
-                delegate: _PinnedHeader(
-                  child: _chapterPills(),
-                  height: 62,
-                ),
+                delegate: _PinnedHeader(child: _chapterPills(), height: 62),
               ),
 
-              SliverToBoxAdapter(
-                child: _listHeading(visible.length),
-              ),
+              SliverToBoxAdapter(child: _listHeading(visible.length)),
 
               if (_loading)
                 const SliverFillRemaining(
                   hasScrollBody: false,
                   child: Center(
-                    child: CircularProgressIndicator(
-                      color: purple,
-                    ),
+                    child: CircularProgressIndicator(color: purple),
                   ),
                 )
               else if (_error != null)
@@ -376,10 +336,7 @@ class _MembersPageState extends State<MembersPage> {
                           Text(
                             _error!,
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: muted,
-                              fontSize: 12,
-                            ),
+                            style: const TextStyle(color: muted, fontSize: 12),
                           ),
                           const SizedBox(height: 12),
                           TextButton.icon(
@@ -402,22 +359,14 @@ class _MembersPageState extends State<MembersPage> {
                         'No members match your search. '
                         'Try another name or chapter.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: muted,
-                          height: 1.5,
-                        ),
+                        style: TextStyle(color: muted, height: 1.5),
                       ),
                     ),
                   ),
                 )
               else
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(
-                    12,
-                    0,
-                    12,
-                    20,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
                   sliver: SliverLayoutBuilder(
                     builder: (context, constraints) {
                       final width = constraints.crossAxisExtent;
@@ -425,12 +374,11 @@ class _MembersPageState extends State<MembersPage> {
                       final columns = width >= 900
                           ? 3
                           : width >= 600
-                              ? 2
-                              : 1;
+                          ? 2
+                          : 1;
 
                       return SliverGrid(
-                        gridDelegate:
-                            SliverGridDelegateWithFixedCrossAxisCount(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: columns,
                           crossAxisSpacing: 14,
                           mainAxisSpacing: 14,
@@ -439,8 +387,7 @@ class _MembersPageState extends State<MembersPage> {
                         delegate: SliverChildBuilderDelegate(
                           (context, index) => _MemberCard(
                             member: visible[index],
-                            onTap: () =>
-                                _openProfile(visible[index]),
+                            onTap: () => _openProfile(visible[index]),
                             onSocialTap: _openSocial,
                           ),
                           childCount: visible.length,

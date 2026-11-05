@@ -3,7 +3,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'member_session.dart';
 
-
 abstract class AuthApi {
   Future<Map<String, dynamic>> sendOtp(String phone);
 

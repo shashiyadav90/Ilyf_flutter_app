@@ -1,43 +1,75 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../components/app_header.dart';
 import '../../components/bottom_nav.dart';
-
 import '../../data/repositories/inquiry_chat_repository.dart';
 
-const Color _ink = Color(0xFF1A1433);
-const Color _inkSecondary = Color(0xFF625B7B);
-const Color _violet = Color(0xFF6C3FD1);
-const Color _violetDark = Color(0xFF2A1466);
-const Color _mist = Color(0xFFF6F3FF);
-const Color _line = Color(0xFFE6DFF9);
+const String _orbAsset = 'assets/images/ai_animation.jpg';
+
+const Color _ink = Color(0xFF211C45);
+const Color _inkSecondary = Color(0xFF6A6685);
+const Color _violet = Color(0xFF7248E0);
+const Color _tile = Color(0xFFF1EBFF);
+const Color _line = Color(0xFFE7E1FA);
 const Color _rose = Color(0xFFE8447F);
 const Color _blue = Color(0xFF3B63E8);
 const Color _green = Color(0xFF17935F);
 
-const LinearGradient _brandGradient = LinearGradient(
-  colors: [Color(0xFF7B4DE0), Color(0xFF5A34C6), Color(0xFF3B63E8)],
+const LinearGradient _buttonGradient = LinearGradient(
+  colors: [Color(0xFF8C5BF0), Color(0xFF5B3FD8), Color(0xFF4B40CF)],
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+);
+
+const LinearGradient _bubbleGradient = LinearGradient(
+  colors: [Color(0xFF8C5BF0), Color(0xFF5B3FD8)],
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
 );
 
-const List<Map<String, String>> _categories = [
-  {'icon': '📸', 'label': 'Photographer'},
-  {'icon': '🔧', 'label': 'Plumber'},
-  {'icon': '🍽️', 'label': 'Catering'},
-  {'icon': '⚖️', 'label': 'Lawyer'},
-  {'icon': '🎨', 'label': 'Designer'},
-  {'icon': '📚', 'label': 'Tutor'},
-];
+const LinearGradient _pageGradient = LinearGradient(
+  colors: [Color(0xFFEDE6FF), Color(0xFFF7F4FF), Color(0xFFFFFFFF)],
+  stops: [0, 0.55, 1],
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+);
 
-const List<Map<String, String>> _examples = [
-  {'service': 'Photographer', 'city': 'Mumbai'},
-  {'service': 'Plumber', 'city': 'Delhi'},
-  {'service': 'Catering', 'city': 'Bengaluru'},
+class _Starter {
+  const _Starter({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+}
+
+const List<_Starter> _starters = [
+  _Starter(
+    icon: Icons.build_rounded,
+    title: 'Find a reliable plumber nearby',
+    subtitle: 'Home repairs & maintenance',
+  ),
+  _Starter(
+    icon: Icons.calculate_outlined,
+    title: 'I need help with my taxes',
+    subtitle: 'Accountants & financial advice',
+  ),
+  _Starter(
+    icon: Icons.weekend_outlined,
+    title: 'Help me redesign my living room',
+    subtitle: 'Interior designers & home styling',
+  ),
 ];
 
 class ChatPage extends StatefulWidget {
-  const ChatPage({super.key});
+  const ChatPage({super.key, this.showBottomNav = true});
+
+  final bool showBottomNav;
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -54,6 +86,7 @@ class _ChatPageState extends State<ChatPage> {
   Map<String, dynamic>? _inquiry;
   List<dynamic> _answerChips = [];
 
+  bool _begun = false;
   bool _loading = false;
   String _input = '';
 
@@ -65,18 +98,19 @@ class _ChatPageState extends State<ChatPage> {
     return value.toString();
   }
 
-  int get _step {
-    if (_messages.any((m) => m.ready)) return 2;
+  @override
+  void initState() {
+    super.initState();
+    _inputFocus.addListener(_onFocusChange);
+  }
 
-    final status = _inquiry?['status']?.toString().toLowerCase();
-    if (status == 'ready') return 2;
-    if (status == 'confirming' || _answerChips.isNotEmpty) return 1;
-
-    return _started ? 1 : 0;
+  void _onFocusChange() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _inputFocus.removeListener(_onFocusChange);
     _inputController.dispose();
     _inputFocus.dispose();
     _scrollController.dispose();
@@ -113,8 +147,6 @@ class _ChatPageState extends State<ChatPage> {
     _scrollToBottom();
 
     try {
-      // POST /api/chat/search
-      // { message: query, inquiryId?: previousInquiryId }
       final result = await _repository.searchBusinesses(
         message: query,
         inquiryId: previousInquiryId,
@@ -187,6 +219,7 @@ class _ChatPageState extends State<ChatPage> {
 
   void _resetChat() {
     setState(() {
+      _begun = true;
       _messages.clear();
       _inquiry = null;
       _answerChips = [];
@@ -195,19 +228,27 @@ class _ChatPageState extends State<ChatPage> {
       _inputController.clear();
     });
 
-    _inputFocus.requestFocus();
+    _inputFocus.unfocus();
   }
 
-  void _selectCategory(String label) {
-    final value = '$label in ';
-    setState(() {
-      _input = value;
-      _inputController.text = value;
-      _inputController.selection = TextSelection.collapsed(
-        offset: value.length,
+  void _comingSoon(String feature) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          content: Text('$feature is coming soon.'),
+        ),
       );
-    });
-    _inputFocus.requestFocus();
+  }
+
+  void _openMenu(BuildContext scaffoldContext) {
+    final scaffold = Scaffold.maybeOf(scaffoldContext);
+    if (scaffold != null && scaffold.hasDrawer) {
+      scaffold.openDrawer();
+      return;
+    }
+    if (scaffoldContext.canPop()) scaffoldContext.pop();
   }
 
   String _displayValue(dynamic value, {String fallback = ''}) {
@@ -235,356 +276,404 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
+    final showLanding = !_begun && !_started;
+
     return Scaffold(
-      backgroundColor: _mist,
+      backgroundColor: const Color(0xFFEDE6FF),
+      resizeToAvoidBottomInset: true,
       appBar: const AppHeader(),
-      body: SafeArea(
-        top: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 900),
-            child: Column(
-              children: [
-                _buildHero(),
-                Expanded(
-                  child: _started ? _buildConversation() : _buildWelcome(),
-                ),
-                _buildComposer(),
-              ],
-            ),
-          ),
-        ),
-      ),
-      bottomNavigationBar: const BottomNav(isStaff: false),
-    );
-  }
-
-  Widget _buildHero() {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      padding: EdgeInsets.fromLTRB(
-        22,
-        _started ? 15 : 24,
-        22,
-        _started ? 16 : 21,
-      ),
-      decoration: const BoxDecoration(
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
-        gradient: LinearGradient(
-          colors: [_violetDark, Color(0xFF4A25A8), Color(0xFF3B3FC9)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -18,
-            top: -45,
-            child: IgnorePointer(
-              child: Container(
-                width: 155,
-                height: 155,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _rose.withValues(alpha: 0.17),
-                ),
-              ),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (!_started) ...[
-                const Text(
-                  'What do you need?',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 29,
-                    fontWeight: FontWeight.w800,
-                    height: 1.12,
-                    letterSpacing: -0.8,
-                  ),
-                ),
-                const SizedBox(height: 9),
-                Text(
-                  'Describe it in one line. We’ll confirm the details, '
-                  'then find members who can help.',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.78),
-                    height: 1.55,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 21),
-              ],
-              Row(
-                children: [
-                  _buildProgressStep('Describe', 0),
-                  _buildProgressLine(0),
-                  _buildProgressStep('Confirm', 1),
-                  _buildProgressLine(1),
-                  _buildProgressStep('Matches', 2),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProgressStep(String label, int index) {
-    final completed = index < _step;
-    final current = index == _step;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          width: 27,
-          height: 27,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: completed || current
-                ? Colors.white
-                : Colors.white.withValues(alpha: 0.06),
-            border: Border.all(
-              color: completed || current
-                  ? Colors.white
-                  : Colors.white.withValues(alpha: 0.4),
-            ),
-            boxShadow: current
-                ? [
-                    BoxShadow(
-                      color: Colors.white.withValues(alpha: 0.20),
-                      blurRadius: 0,
-                      spreadRadius: 4,
-                    ),
-                  ]
-                : null,
-          ),
+      bottomNavigationBar: widget.showBottomNav
+          ? const BottomNav(isStaff: false)
+          : null,
+      body: Container(
+        width: double.infinity,
+        decoration: const BoxDecoration(gradient: _pageGradient),
+        child: SafeArea(
+          bottom: !widget.showBottomNav,
           child: Center(
-            child: completed
-                ? const Icon(Icons.check_rounded, size: 16, color: _violetDark)
-                : Text(
-                    '${index + 1}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: current ? _violetDark : Colors.white70,
-                    ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 720),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 380),
+                switchInCurve: Curves.easeOutCubic,
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, 0.03),
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
                   ),
+                ),
+                child: showLanding
+                    ? KeyedSubtree(
+                        key: const ValueKey('landing'),
+                        child: _buildLanding(),
+                      )
+                    : KeyedSubtree(
+                        key: const ValueKey('chat'),
+                        child: _buildChatShell(),
+                      ),
+              ),
+            ),
           ),
-        ),
-        const SizedBox(width: 7),
-        Text(
-          label,
-          style: TextStyle(
-            color: completed || current
-                ? Colors.white
-                : Colors.white.withValues(alpha: 0.60),
-            fontSize: 12,
-            fontWeight: current ? FontWeight.w800 : FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildProgressLine(int index) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 9),
-        height: 2,
-        decoration: BoxDecoration(
-          color: index < _step
-              ? Colors.white
-              : Colors.white.withValues(alpha: 0.23),
-          borderRadius: BorderRadius.circular(5),
         ),
       ),
     );
   }
 
-  Widget _buildWelcome() {
+  Widget _buildLanding() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final horizontal = constraints.maxWidth < 420 ? 17.0 : 23.0;
-
         return SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(horizontal, 24, horizontal, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Browse by service',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: _ink,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 15),
-              SizedBox(
-                height: 111,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _categories.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(width: 11),
-                  itemBuilder: (context, index) {
-                    final category = _categories[index];
-                    return _buildCategory(category);
-                  },
-                ),
-              ),
-              const SizedBox(height: 28),
-              Row(
+          padding: const EdgeInsets.fromLTRB(22, 16, 22, 18),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: math.max(0, constraints.maxHeight - 34),
+            ),
+            child: IntrinsicHeight(
+              child: Column(
                 children: [
-                  const Expanded(
+                  _buildBrand(),
+                  const Spacer(flex: 2),
+                  const _AiOrb(size: 168),
+                  const SizedBox(height: 22),
+                  const Text(
+                    'Hi, welcome to ILYF',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: _ink,
+                      fontSize: 33,
+                      fontWeight: FontWeight.w800,
+                      height: 1.12,
+                      letterSpacing: -0.9,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 14),
                     child: Text(
-                      'Or try an example',
+                      'Find trusted professionals in your community. '
+                      'A little conversation. The right connection.',
+                      textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 16,
-                        color: _ink,
-                        fontWeight: FontWeight.w800,
+                        color: _inkSecondary,
+                        fontSize: 15,
+                        height: 1.55,
                       ),
                     ),
                   ),
-                  Icon(
-                    Icons.bolt_rounded,
-                    color: _violet.withValues(alpha: 0.8),
-                    size: 19,
-                  ),
-                  const SizedBox(width: 4),
-                  const Text(
-                    'Quick start',
-                    style: TextStyle(
-                      color: _inkSecondary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  const Spacer(flex: 2),
+                  _buildConciergeCard(),
+                  const SizedBox(height: 18),
+                  _footerNote(
+                    icon: Icons.people_outline_rounded,
+                    text: 'Real people. Meaningful connections.',
                   ),
                 ],
               ),
-              const SizedBox(height: 13),
-              ..._examples.map(_buildExample),
-              const SizedBox(height: 18),
-              Container(
-                padding: const EdgeInsets.all(15),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: _line),
-                  borderRadius: BorderRadius.circular(17),
-                ),
-                child: const Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.tips_and_updates_outlined,
-                      color: _violet,
-                      size: 21,
-                    ),
-                    SizedBox(width: 11),
-                    Expanded(
-                      child: Text(
-                        'Tip: mention the service and city to help us '
-                        'find relevant members.',
-                        style: TextStyle(
-                          color: _inkSecondary,
-                          fontSize: 12,
-                          height: 1.55,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
         );
       },
     );
   }
 
-  Widget _buildCategory(Map<String, String> category) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(20),
-      onTap: () => _selectCategory(category['label']!),
-      child: SizedBox(
-        width: 82,
-        child: Column(
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(21),
-                border: Border.all(color: _line),
-                boxShadow: [
-                  BoxShadow(
-                    color: _violet.withValues(alpha: 0.07),
-                    blurRadius: 15,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
+  Widget _buildBrand() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            gradient: _buttonGradient,
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: const Icon(
+            Icons.auto_awesome_rounded,
+            color: Colors.white,
+            size: 17,
+          ),
+        ),
+        const SizedBox(width: 9),
+        RichText(
+          text: const TextSpan(
+            style: TextStyle(color: _ink, fontSize: 16),
+            children: [
+              TextSpan(
+                text: 'ILYF',
+                style: TextStyle(fontWeight: FontWeight.w800),
               ),
-              child: Center(
-                child: Text(
-                  category['icon']!,
-                  style: const TextStyle(fontSize: 27),
+              TextSpan(
+                text: ' Connect',
+                style: TextStyle(fontWeight: FontWeight.w400),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConciergeCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: _line),
+        boxShadow: [
+          BoxShadow(
+            color: _violet.withValues(alpha: 0.09),
+            blurRadius: 30,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.auto_awesome_rounded, size: 15, color: _violet),
+              SizedBox(width: 7),
+              Text(
+                'YOUR AI CONCIERGE',
+                style: TextStyle(
+                  color: _violet,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.1,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Good connections start here.',
+            style: TextStyle(
+              color: _ink,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              height: 1.2,
+              letterSpacing: -0.4,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Tell me what you need. I’ll help you find the right people.',
+            style: TextStyle(color: _inkSecondary, fontSize: 14, height: 1.5),
+          ),
+          const SizedBox(height: 18),
+          _GradientButton(
+            label: 'Let’s begin',
+            onTap: () => setState(() => _begun = true),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _footerNote({required IconData icon, required String text}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, size: 16, color: _inkSecondary),
+        const SizedBox(width: 7),
+        Text(text, style: const TextStyle(color: _inkSecondary, fontSize: 12)),
+      ],
+    );
+  }
+
+  Widget _buildChatShell() {
+    return Column(
+      children: [
+        Expanded(child: _started ? _buildConversation() : _buildStart()),
+        _buildComposer(),
+      ],
+    );
+  }
+
+  Widget _buildTopBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 96,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Builder(
+                builder: (scaffoldContext) => _squareButton(
+                  icon: Icons.menu_rounded,
+                  tooltip: 'Menu',
+                  onTap: () => _openMenu(scaffoldContext),
                 ),
               ),
             ),
-            const SizedBox(height: 9),
-            Text(
-              category['label']!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: _ink,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+          ),
+          const Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'ILYF Connect',
+                  style: TextStyle(
+                    color: _ink,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Your community, connected',
+                  style: TextStyle(color: _inkSecondary, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            width: 96,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: _loading ? null : _resetChat,
+                icon: const Icon(Icons.edit_note_rounded, size: 19),
+                label: const Text('New chat'),
+                style: TextButton.styleFrom(
+                  foregroundColor: _violet,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  textStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _squareButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _line),
+            ),
+            child: Icon(icon, size: 21, color: _ink),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildExample(Map<String, String> example) {
+  Widget _buildStart() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+      child: Column(
+        children: [
+          const _AiOrb(size: 62),
+          const SizedBox(height: 10),
+          const Text(
+            'Who can I help you connect with?',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: _ink,
+              fontSize: 29,
+              fontWeight: FontWeight.w800,
+              height: 1.15,
+              letterSpacing: -0.8,
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 10),
+            child: Text(
+              'Share what you need. I’ll ask a few follow-up questions, '
+              'then find relevant people in your community to help.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: _inkSecondary,
+                fontSize: 14,
+                height: 1.55,
+              ),
+            ),
+          ),
+          const SizedBox(height: 26),
+          const Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'A PLACE TO START',
+                  style: TextStyle(
+                    color: _inkSecondary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+              ),
+              Icon(Icons.auto_awesome_rounded, size: 15, color: _violet),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ..._starters.map(_buildStarter),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStarter(_Starter starter) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 11),
       child: Material(
         color: Colors.white,
         borderRadius: BorderRadius.circular(17),
         child: InkWell(
           borderRadius: BorderRadius.circular(17),
-          onTap: () => _send('${example['service']} in ${example['city']}'),
+          onTap: _loading ? null : () => _send(starter.title),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(17),
               border: Border.all(color: _line),
+              boxShadow: [
+                BoxShadow(
+                  color: _violet.withValues(alpha: 0.05),
+                  blurRadius: 16,
+                  offset: const Offset(0, 5),
+                ),
+              ],
             ),
             child: Row(
               children: [
                 Container(
-                  width: 43,
-                  height: 43,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
-                    color: _mist,
+                    color: _tile,
                     borderRadius: BorderRadius.circular(13),
                   ),
-                  child: const Icon(
-                    Icons.search_rounded,
-                    color: _violet,
-                    size: 22,
-                  ),
+                  child: Icon(starter.icon, color: _violet, size: 21),
                 ),
                 const SizedBox(width: 13),
                 Expanded(
@@ -592,38 +681,29 @@ class _ChatPageState extends State<ChatPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        example['service']!,
+                        starter.title,
                         style: const TextStyle(
                           color: _ink,
                           fontSize: 14,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(height: 5),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.location_on_outlined,
-                            color: _rose,
-                            size: 15,
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            example['city']!,
-                            style: const TextStyle(
-                              color: _inkSecondary,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 3),
+                      Text(
+                        starter.subtitle,
+                        style: const TextStyle(
+                          color: _inkSecondary,
+                          fontSize: 11.5,
+                        ),
                       ),
                     ],
                   ),
                 ),
+                const SizedBox(width: 8),
                 const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 15,
-                  color: _violet,
+                  Icons.north_east_rounded,
+                  size: 17,
+                  color: _inkSecondary,
                 ),
               ],
             ),
@@ -636,7 +716,7 @@ class _ChatPageState extends State<ChatPage> {
   Widget _buildConversation() {
     return ListView(
       controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(17, 22, 17, 22),
+      padding: const EdgeInsets.fromLTRB(17, 14, 17, 18),
       children: [
         if (_inquiry != null) _buildInquirySummary(),
         ..._messages.map(_buildMessage),
@@ -657,10 +737,10 @@ class _ChatPageState extends State<ChatPage> {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: _line),
-        borderRadius: BorderRadius.circular(21),
+        borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: _violet.withValues(alpha: 0.05),
+            color: _violet.withValues(alpha: 0.06),
             blurRadius: 20,
             offset: const Offset(0, 7),
           ),
@@ -675,7 +755,7 @@ class _ChatPageState extends State<ChatPage> {
                 width: 35,
                 height: 35,
                 decoration: BoxDecoration(
-                  color: _mist,
+                  color: _tile,
                   borderRadius: BorderRadius.circular(11),
                 ),
                 child: const Icon(
@@ -698,7 +778,7 @@ class _ChatPageState extends State<ChatPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                 decoration: BoxDecoration(
-                  color: _violet.withValues(alpha: 0.09),
+                  color: _violet.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -779,7 +859,7 @@ class _ChatPageState extends State<ChatPage> {
           margin: const EdgeInsets.only(bottom: 14, left: 38),
           padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 13),
           decoration: BoxDecoration(
-            gradient: _brandGradient,
+            gradient: _bubbleGradient,
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(21),
               topRight: Radius.circular(21),
@@ -788,7 +868,7 @@ class _ChatPageState extends State<ChatPage> {
             ),
             boxShadow: [
               BoxShadow(
-                color: _violet.withValues(alpha: 0.17),
+                color: _violet.withValues(alpha: 0.2),
                 blurRadius: 15,
                 offset: const Offset(0, 6),
               ),
@@ -815,22 +895,10 @@ class _ChatPageState extends State<ChatPage> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 29,
-                height: 29,
-                decoration: BoxDecoration(
-                  gradient: _brandGradient,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.auto_awesome_rounded,
-                  color: Colors.white,
-                  size: 16,
-                ),
-              ),
+              _orbImage(28),
               const SizedBox(width: 8),
               const Text(
-                'ILYF Assistant',
+                'ILYF Connect',
                 style: TextStyle(
                   color: _ink,
                   fontSize: 12,
@@ -863,6 +931,13 @@ class _ChatPageState extends State<ChatPage> {
                 bottomLeft: Radius.circular(20),
                 bottomRight: Radius.circular(20),
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: _violet.withValues(alpha: 0.05),
+                  blurRadius: 16,
+                  offset: const Offset(0, 5),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -871,7 +946,7 @@ class _ChatPageState extends State<ChatPage> {
                   message.text,
                   style: TextStyle(
                     color: message.isError ? _rose : _ink,
-                    fontSize: 13,
+                    fontSize: 13.5,
                     height: 1.65,
                   ),
                 ),
@@ -896,9 +971,9 @@ class _ChatPageState extends State<ChatPage> {
           const Text(
             'Choose an answer',
             style: TextStyle(
-              color: _ink,
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
+              color: _inkSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 10),
@@ -924,7 +999,7 @@ class _ChatPageState extends State<ChatPage> {
                   label,
                   style: const TextStyle(
                     color: _violet,
-                    fontSize: 12,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -957,7 +1032,7 @@ class _ChatPageState extends State<ChatPage> {
             ),
             SizedBox(width: 11),
             Text(
-              'Finding the right information...',
+              'Finding the right people...',
               style: TextStyle(
                 color: _inkSecondary,
                 fontSize: 12,
@@ -1010,7 +1085,7 @@ class _ChatPageState extends State<ChatPage> {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: _mist,
+              color: _tile,
               borderRadius: BorderRadius.circular(14),
             ),
             child: const Row(
@@ -1097,7 +1172,7 @@ class _ChatPageState extends State<ChatPage> {
                 width: 49,
                 height: 49,
                 decoration: BoxDecoration(
-                  gradient: _brandGradient,
+                  gradient: _bubbleGradient,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Center(
@@ -1124,7 +1199,7 @@ class _ChatPageState extends State<ChatPage> {
                           name,
                           style: const TextStyle(
                             color: _ink,
-                            fontSize: 13,
+                            fontSize: 13.5,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -1199,7 +1274,7 @@ class _ChatPageState extends State<ChatPage> {
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
-              height: 39,
+              height: 40,
               child: OutlinedButton(
                 onPressed: () {
                   context.push('/members/$id');
@@ -1208,7 +1283,7 @@ class _ChatPageState extends State<ChatPage> {
                   foregroundColor: _violet,
                   side: const BorderSide(color: _line),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(13),
                   ),
                 ),
                 child: const Text(
@@ -1232,10 +1307,11 @@ class _ChatPageState extends State<ChatPage> {
         label: const Text('Start a new enquiry'),
         style: OutlinedButton.styleFrom(
           foregroundColor: _violet,
+          backgroundColor: Colors.white,
           side: const BorderSide(color: _line),
-          minimumSize: const Size(double.infinity, 47),
+          minimumSize: const Size(double.infinity, 48),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
       ),
@@ -1243,109 +1319,320 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildComposer() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 13),
-      decoration: BoxDecoration(
-        color: _mist,
-        boxShadow: [
-          BoxShadow(
-            color: _violet.withValues(alpha: 0.04),
-            blurRadius: 15,
-            offset: const Offset(0, -4),
+    final focused = _inputFocus.hasFocus;
+    final canSend = _input.trim().isNotEmpty && !_loading;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.fromLTRB(16, 4, 10, 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: focused ? _violet : _line,
+                width: focused ? 1.5 : 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: _violet.withValues(alpha: 0.09),
+                  blurRadius: 22,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _inputController,
+                  focusNode: _inputFocus,
+                  enabled: !_loading,
+                  minLines: 1,
+                  maxLines: 4,
+                  keyboardType: TextInputType.multiline,
+                  textInputAction: TextInputAction.send,
+                  textCapitalization: TextCapitalization.sentences,
+                  onChanged: (value) => setState(() => _input = value),
+                  onSubmitted: (_) => _send(),
+                  decoration: const InputDecoration(
+                    hintText: 'Tell ILYF what you’re looking for…',
+                    hintStyle: TextStyle(
+                      color: Color(0xFF9A93B3),
+                      fontSize: 14,
+                    ),
+                    isDense: true,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  style: const TextStyle(
+                    color: _ink,
+                    fontSize: 14.5,
+                    height: 1.4,
+                  ),
+                ),
+                Row(
+                  children: [
+                    _composerIcon(
+                      Icons.add_rounded,
+                      'Attach',
+                      () => _comingSoon('Attachments'),
+                    ),
+                    _composerIcon(
+                      Icons.mic_none_rounded,
+                      'Voice',
+                      () => _comingSoon('Voice input'),
+                    ),
+                    const Spacer(),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        gradient: canSend ? _buttonGradient : null,
+                        color: canSend ? null : _violet.withValues(alpha: 0.28),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: canSend
+                            ? [
+                                BoxShadow(
+                                  color: _violet.withValues(alpha: 0.28),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: IconButton(
+                        onPressed: canSend ? _send : null,
+                        tooltip: 'Send enquiry',
+                        icon: _loading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.arrow_upward_rounded,
+                                color: Colors.white,
+                                size: 22,
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 9),
+          const Text(
+            'AI-guided discovery. Always a human connection.',
+            style: TextStyle(color: _inkSecondary, fontSize: 11),
           ),
         ],
       ),
-      child: Container(
-        padding: const EdgeInsets.only(left: 17, right: 6),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(
-            color: _inputFocus.hasFocus ? _violet : _line,
-            width: _inputFocus.hasFocus ? 1.5 : 1,
+    );
+  }
+
+  Widget _composerIcon(IconData icon, String tooltip, VoidCallback onTap) {
+    return IconButton(
+      onPressed: onTap,
+      tooltip: tooltip,
+      visualDensity: VisualDensity.compact,
+      icon: Icon(icon, size: 22, color: _inkSecondary),
+    );
+  }
+}
+
+Widget _orbImage(double size) {
+  return ClipOval(
+    child: Image.asset(
+      _orbAsset,
+      width: size,
+      height: size,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => Container(
+        width: size,
+        height: size,
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: RadialGradient(
+            center: Alignment(-0.3, -0.4),
+            colors: [Color(0xFFCDB0FF), Color(0xFF8C5BF0), Color(0xFF5B3FD8)],
           ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _AiOrb extends StatefulWidget {
+  const _AiOrb({required this.size});
+
+  final double size;
+
+  @override
+  State<_AiOrb> createState() => _AiOrbState();
+}
+
+class _AiOrbState extends State<_AiOrb> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 8),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.of(context).disableAnimations) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Widget _ring(double diameter, double alpha) {
+    return Container(
+      width: diameter,
+      height: diameter,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: _violet.withValues(alpha: alpha * 0.3),
+        border: Border.all(color: _violet.withValues(alpha: alpha)),
+      ),
+    );
+  }
+
+  Widget _orbit(double diameter, double turns, double dot) {
+    return Transform.rotate(
+      angle: turns * 2 * math.pi,
+      child: SizedBox(
+        width: diameter,
+        height: diameter,
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: Container(
+            width: dot,
+            height: dot,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+              border: Border.all(color: _violet.withValues(alpha: 0.45)),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = widget.size;
+    final outer = size * 1.5;
+    final inner = size * 1.26;
+
+    return SizedBox(
+      width: outer,
+      height: outer,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          final t = _controller.value;
+          final breathe = 1 + 0.03 * math.sin(t * 2 * math.pi);
+
+          return Stack(
+            alignment: Alignment.center,
+            children: [
+              _ring(outer, 0.10),
+              _ring(inner, 0.16),
+              Container(
+                width: size,
+                height: size,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: _violet.withValues(alpha: 0.36),
+                      blurRadius: size * 0.3,
+                      spreadRadius: size * 0.02,
+                    ),
+                  ],
+                ),
+              ),
+              Transform.scale(scale: breathe, child: _orbImage(size)),
+              _orbit(outer, t, math.max(5, size * 0.04)),
+              _orbit(inner, -2 * t, math.max(4, size * 0.03)),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _GradientButton extends StatelessWidget {
+  const _GradientButton({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: Ink(
+        decoration: BoxDecoration(
+          gradient: _buttonGradient,
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: _violet.withValues(alpha: 0.08),
-              blurRadius: 20,
-              offset: const Offset(0, 5),
+              color: _violet.withValues(alpha: 0.32),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
-        child: Row(
-          children: [
-            const Icon(
-              Icons.chat_bubble_outline_rounded,
-              size: 19,
-              color: _inkSecondary,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: TextField(
-                controller: _inputController,
-                focusNode: _inputFocus,
-                enabled: !_loading,
-                minLines: 1,
-                maxLines: 3,
-                textCapitalization: TextCapitalization.sentences,
-                onChanged: (value) => setState(() => _input = value),
-                onSubmitted: (_) => _send(),
-                decoration: const InputDecoration(
-                  hintText: 'Describe what you need...',
-                  hintStyle: TextStyle(color: Color(0xFF9A93B3), fontSize: 13),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(vertical: 14),
-                ),
-                style: const TextStyle(color: _ink, fontSize: 14, height: 1.4),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: SizedBox(
+            height: 54,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Spacer(),
+                  const Icon(
+                    Icons.arrow_forward_rounded,
+                    color: Colors.white,
+                    size: 21,
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 7),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              width: 45,
-              height: 45,
-              decoration: BoxDecoration(
-                gradient: _input.trim().isNotEmpty && !_loading
-                    ? _brandGradient
-                    : LinearGradient(
-                        colors: [
-                          _violet.withValues(alpha: 0.35),
-                          _blue.withValues(alpha: 0.35),
-                        ],
-                      ),
-                shape: BoxShape.circle,
-                boxShadow: _input.trim().isNotEmpty && !_loading
-                    ? [
-                        BoxShadow(
-                          color: _violet.withValues(alpha: 0.22),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: IconButton(
-                onPressed: _input.trim().isNotEmpty && !_loading ? _send : null,
-                tooltip: 'Send enquiry',
-                icon: _loading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Icon(
-                        Icons.arrow_upward_rounded,
-                        color: Colors.white,
-                        size: 22,
-                      ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

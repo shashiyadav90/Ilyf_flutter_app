@@ -1,4 +1,3 @@
-
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -17,8 +16,7 @@ class MembershipPage extends StatefulWidget {
 class _MembershipPageState extends State<MembershipPage> {
   // IMPORTANT:
   // Replace this with the actual endpoint provided by your backend team.
-  static const String membershipSubmitEndpoint =
-      '/membership/enquiries';
+  static const String membershipSubmitEndpoint = '/membership/enquiries';
 
   static const Color purple = Color(0xFF7A4FD0);
   static const Color purpleDark = Color(0xFF4B27A3);
@@ -77,10 +75,7 @@ class _MembershipPageState extends State<MembershipPage> {
   }
 
   TextEditingController _controllerFor(String name) {
-    return _controllers.putIfAbsent(
-      name,
-      () => TextEditingController(),
-    );
+    return _controllers.putIfAbsent(name, () => TextEditingController());
   }
 
   void _changeType(String type) {
@@ -115,10 +110,7 @@ class _MembershipPageState extends State<MembershipPage> {
       details[field.name] = _controllerFor(field.name).text.trim();
     }
 
-    final payload = <String, dynamic>{
-      'membershipType': _type,
-      ...details,
-    };
+    final payload = <String, dynamic>{'membershipType': _type, ...details};
 
     try {
       final response = await ApiConfig.dio.post(
@@ -130,21 +122,22 @@ class _MembershipPageState extends State<MembershipPage> {
 
       setState(() {
         _successMessage =
-            response.data is Map &&
-                    response.data['message'] != null
-                ? response.data['message'].toString()
-                : 'Your membership details have been submitted successfully.';
+            response.data is Map && response.data['message'] != null
+            ? response.data['message'].toString()
+            : 'Your membership details have been submitted successfully.';
       });
     } on DioException catch (e) {
       if (!mounted) return;
 
       final responseData = e.response?.data;
-      String message = 'Unable to submit your membership details. Please try again.';
+      String message =
+          'Unable to submit your membership details. Please try again.';
 
       if (responseData is Map && responseData['message'] != null) {
         message = responseData['message'].toString();
       } else if (e.response == null) {
-        message = 'Unable to connect to the server. Please check your internet connection.';
+        message =
+            'Unable to connect to the server. Please check your internet connection.';
       }
 
       setState(() {
@@ -167,8 +160,7 @@ class _MembershipPageState extends State<MembershipPage> {
 
   @override
   Widget build(BuildContext context) {
-    final heading = _businessName != null &&
-            _businessName!.trim().isNotEmpty
+    final heading = _businessName != null && _businessName!.trim().isNotEmpty
         ? 'Become a member to view more about ${_businessName!.trim()}'
         : 'Choose your ILYF membership';
 
@@ -273,16 +265,11 @@ class _MembershipPageState extends State<MembershipPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 7,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(30),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.25),
-              ),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
             ),
             child: const Row(
               mainAxisSize: MainAxisSize.min,
@@ -359,11 +346,7 @@ class _MembershipPageState extends State<MembershipPage> {
     );
   }
 
-  Widget _membershipTypeButton(
-    String value,
-    String label,
-    IconData icon,
-  ) {
+  Widget _membershipTypeButton(String value, String label, IconData icon) {
     final selected = _type == value;
 
     return InkWell(
@@ -374,9 +357,7 @@ class _MembershipPageState extends State<MembershipPage> {
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
           gradient: selected
-              ? const LinearGradient(
-                  colors: [purple, purpleDark],
-                )
+              ? const LinearGradient(colors: [purple, purpleDark])
               : null,
           color: selected ? null : Colors.transparent,
           borderRadius: BorderRadius.circular(13),
@@ -384,11 +365,7 @@ class _MembershipPageState extends State<MembershipPage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 18,
-              color: selected ? Colors.white : muted,
-            ),
+            Icon(icon, size: 18, color: selected ? Colors.white : muted),
             const SizedBox(width: 8),
             Text(
               label,
@@ -413,9 +390,7 @@ class _MembershipPageState extends State<MembershipPage> {
       decoration: BoxDecoration(
         color: const Color(0xFFF0EAFE),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFFE3D9FC),
-        ),
+        border: Border.all(color: const Color(0xFFE3D9FC)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -498,10 +473,7 @@ class _MembershipPageState extends State<MembershipPage> {
             const SizedBox(height: 6),
             const Text(
               'Please provide the following information.',
-              style: TextStyle(
-                color: muted,
-                fontSize: 13,
-              ),
+              style: TextStyle(color: muted, fontSize: 13),
             ),
             const SizedBox(height: 22),
 
@@ -566,10 +538,7 @@ class _MembershipPageState extends State<MembershipPage> {
                             ),
                           ),
                           const SizedBox(width: 9),
-                          const Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 19,
-                          ),
+                          const Icon(Icons.arrow_forward_rounded, size: 19),
                         ],
                       ),
               ),
@@ -611,8 +580,7 @@ class _MembershipPageState extends State<MembershipPage> {
             }
 
             if (field.isEmail &&
-                !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                    .hasMatch(text)) {
+                !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(text)) {
               return 'Please enter a valid email address';
             }
 
@@ -620,10 +588,7 @@ class _MembershipPageState extends State<MembershipPage> {
           },
           decoration: InputDecoration(
             hintText: 'Enter ${field.label.toLowerCase()}',
-            hintStyle: const TextStyle(
-              color: Color(0xFFAAA5B4),
-              fontSize: 13,
-            ),
+            hintStyle: const TextStyle(color: Color(0xFFAAA5B4), fontSize: 13),
             filled: true,
             fillColor: const Color(0xFFFAF9FC),
             contentPadding: const EdgeInsets.symmetric(
@@ -640,16 +605,11 @@ class _MembershipPageState extends State<MembershipPage> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(13),
-              borderSide: const BorderSide(
-                color: purple,
-                width: 1.5,
-              ),
+              borderSide: const BorderSide(color: purple, width: 1.5),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(13),
-              borderSide: const BorderSide(
-                color: Color(0xFFE5395A),
-              ),
+              borderSide: const BorderSide(color: Color(0xFFE5395A)),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(13),
@@ -739,10 +699,7 @@ class _MembershipPageState extends State<MembershipPage> {
                   Expanded(
                     child: Text(
                       benefit,
-                      style: const TextStyle(
-                        color: muted,
-                        fontSize: 13,
-                      ),
+                      style: const TextStyle(color: muted, fontSize: 13),
                     ),
                   ),
                 ],
@@ -761,11 +718,7 @@ class _MembershipPageState extends State<MembershipPage> {
         child: Text(
           'Your information will be used for membership registration and communication.',
           textAlign: TextAlign.center,
-          style: TextStyle(
-            color: muted,
-            fontSize: 11,
-            height: 1.5,
-          ),
+          style: TextStyle(color: muted, fontSize: 11, height: 1.5),
         ),
       ),
     );
@@ -777,9 +730,5 @@ class _MembershipField {
   final String label;
   final bool isEmail;
 
-  const _MembershipField(
-    this.name,
-    this.label, {
-    this.isEmail = false,
-  });
+  const _MembershipField(this.name, this.label, {this.isEmail = false});
 }

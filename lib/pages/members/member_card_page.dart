@@ -1,4 +1,3 @@
-
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -64,9 +63,7 @@ class _MemberCardPageState extends State<MemberCardPage> {
       Map<String, dynamic>? business;
 
       if (payload is Map) {
-        dynamic data = payload['data'] ??
-            payload['business'] ??
-            payload;
+        dynamic data = payload['data'] ?? payload['business'] ?? payload;
 
         if (data is Map) {
           if (data['business'] is Map) {
@@ -128,7 +125,7 @@ class _MemberCardPageState extends State<MemberCardPage> {
 
       return error.response?.data is Map
           ? (error.response?.data['message']?.toString() ??
-              'Could not load this member. Please try again.')
+                'Could not load this member. Please try again.')
           : 'Could not load this member. Please try again.';
     }
 
@@ -227,8 +224,7 @@ class _MemberCardPageState extends State<MemberCardPage> {
     for (final candidate in candidates) {
       final value = _value(candidate);
 
-      if (value.startsWith('https://') ||
-          value.startsWith('http://')) {
+      if (value.startsWith('https://') || value.startsWith('http://')) {
         return value;
       }
     }
@@ -241,16 +237,11 @@ class _MemberCardPageState extends State<MemberCardPage> {
 
     if (uri == null) return;
 
-    final ok = await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    );
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
 
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not open that link.'),
-        ),
+        const SnackBar(content: Text('Could not open that link.')),
       );
     }
   }
@@ -287,13 +278,12 @@ class _MemberCardPageState extends State<MemberCardPage> {
         child: _loading
             ? _buildLoading()
             : listing == null
-                ? _buildError()
-                : _buildDetails(listing, type, imageUrl),
+            ? _buildError()
+            : _buildDetails(listing, type, imageUrl),
       ),
       bottomNavigationBar: const BottomNav(isStaff: false),
     );
   }
-
 
   Widget _buildLoading() {
     return ListView(
