@@ -1,8 +1,11 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../components/app_header.dart';
 import '../../components/bottom_nav.dart';
+import '../../core/config/api_config.dart';
+import '../../main.dart';
 
 class OverviewPage extends StatefulWidget {
   const OverviewPage({super.key});
@@ -19,111 +22,122 @@ class _OverviewPageState extends State<OverviewPage> {
   static const Color muted = Color(0xFF898398);
   static const Color border = Color(0xFFECE8F3);
 
-  // DUMMY USER DATA
-  final String userName = 'Shashank';
-  final String membership = 'Lifetime Member';
+  Map<String, dynamic> _overview = {};
+  bool _loading = true;
+  String? _error;
 
-  // DUMMY STORIES
-  final List<Map<String, dynamic>> stories = [
-    {
-      'name': 'My Story',
-      'initial': 'S',
-      'color': Color(0xFF6C3FD1),
-      'isOwn': true,
-    },
-    {'name': 'ILYF News', 'initial': 'I', 'color': Color(0xFFEF9B55)},
-    {'name': 'Events', 'initial': 'E', 'color': Color(0xFF3E9E9A)},
-    {'name': 'Members', 'initial': 'M', 'color': Color(0xFF5586D8)},
-    {'name': 'Community', 'initial': 'C', 'color': Color(0xFFD16B9A)},
-  ];
+  Map<String, dynamic> get _profile =>
+      (_overview['profile'] as Map?)?.cast<String, dynamic>() ?? {};
 
-  // DUMMY STATISTICS
-  final Map<String, dynamic> statistics = {
-    'totalEnquiries': 48,
-    'pendingEnquiries': 12,
-    'completedEnquiries': 36,
-    'totalOffers': 15,
-  };
+  Map<String, dynamic> get _stats =>
+      (_overview['stats'] as Map?)?.cast<String, dynamic>() ?? {};
 
-  // DUMMY WEEKLY GRAPH DATA
-  final List<double> weeklyActivity = [12, 18, 10, 25, 19, 32, 27];
+  List<Map<String, dynamic>> get _weeklyEnquiries =>
+      ((_overview['weeklyEnquiries'] as List?) ?? [])
+          .whereType<Map>()
+          .map((item) => item.cast<String, dynamic>())
+          .toList();
 
-  final List<String> weekdays = [
-    'Mon',
-    'Tue',
-    'Wed',
-    'Thu',
-    'Fri',
-    'Sat',
-    'Sun',
-  ];
+  List<Map<String, dynamic>> get _recentEnquiries =>
+      ((_overview['recentEnquiries'] as List?) ?? [])
+          .whereType<Map>()
+          .map((item) => item.cast<String, dynamic>())
+          .toList();
 
-  // DUMMY ENQUIRIES
-  final List<Map<String, dynamic>> enquiries = [
-    {
-      'name': 'Rahul Sharma',
-      'subject': 'Business Partnership',
-      'date': 'Today, 10:30 AM',
-      'status': 'New',
-      'initial': 'R',
-      'color': Color(0xFFE9DFFF),
-    },
-    {
-      'name': 'Priya Kumar',
-      'subject': 'Membership Enquiry',
-      'date': 'Today, 09:15 AM',
-      'status': 'In Progress',
-      'initial': 'P',
-      'color': Color(0xFFFFE9D9),
-    },
-    {
-      'name': 'Arjun Reddy',
-      'subject': 'Event Collaboration',
-      'date': 'Yesterday',
-      'status': 'Completed',
-      'initial': 'A',
-      'color': Color(0xFFDDF3E8),
-    },
-    {
-      'name': 'Sneha Rao',
-      'subject': 'Business Networking',
-      'date': 'Yesterday',
-      'status': 'New',
-      'initial': 'S',
-      'color': Color(0xFFFFE2EE),
-    },
-  ];
+  List<Map<String, dynamic>> get _latestOffers =>
+      ((_overview['latestOffers'] as List?) ?? [])
+          .whereType<Map>()
+          .map((item) => item.cast<String, dynamic>())
+          .toList();
 
-  // DUMMY OFFERS
-  final List<Map<String, dynamic>> offers = [
-    {
-      'title': 'Exclusive Business Networking',
-      'description': 'Connect with leading business professionals.',
-      'category': 'Networking',
-      'validity': 'Valid until 30 Nov 2026',
-      'tag': 'FEATURED',
-      'color': Color(0xFFECE4FF),
-      'icon': Icons.groups_rounded,
-    },
-    {
-      'title': 'Premium Member Benefits',
-      'description': 'Special benefits for ILYF members.',
-      'category': 'Member Benefits',
-      'validity': 'Valid until 15 Dec 2026',
-      'tag': 'NEW',
-      'color': Color(0xFFFFEBDD),
-      'icon': Icons.workspace_premium_rounded,
-    },
-    {
-      'title': 'Business Growth Workshop',
-      'description': 'Learn, connect and grow your business.',
-      'category': 'Events',
-      'validity': 'Valid until 20 Dec 2026',
-      'tag': 'LIMITED',
-      'color': Color(0xFFDFF3EC),
-      'icon': Icons.rocket_launch_rounded,
-    },
-  ];
+  String _text(dynamic value, [String fallback = '']) {
+    if (value == null) return fallback;
+    final result = value.toString().trim();
+    return result.isEmpty ? fallback : result;
+  }
+
+  int _number(dynamic value) {
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchOverview();
+  }
+
+  Future<void> _fetchOverview() async {
+    // 1. Check whether the user is logged in.
+    if (!authService.isLoggedIn) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          context.go('/login?next=/overview');
+        });
+      }
+      return;
+    }
+
+    // 2. Show loading indicator.
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
+
+    try {
+      // 3. Fetch Overview API.
+      final response = await ApiConfig.dio.get<dynamic>('/overview');
+
+      final data = response.data;
+
+      if (data is! Map) {
+        throw Exception('Invalid overview response from server.');
+      }
+
+      // 4. Update Overview data.
+      if (!mounted) return;
+
+      setState(() {
+        _overview = data.cast<String, dynamic>();
+        _loading = false;
+        _error = null;
+      });
+    } on DioException catch (e) {
+      if (!mounted) return;
+
+      // 5. If session expired, redirect to login.
+      if (e.response?.statusCode == 401) {
+        context.go('/login?next=/overview');
+        return;
+      }
+
+      // 6. Handle other API errors.
+      setState(() {
+        _loading = false;
+        _error = e.response?.data is Map
+            ? _text(
+                (e.response!.data as Map)['message'],
+                'Unable to load overview.',
+              )
+            : 'Unable to load overview. Please try again.';
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      // 7. Handle unexpected errors.
+      setState(() {
+        _loading = false;
+        _error = 'Unable to load overview. Please try again.';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -131,133 +145,53 @@ class _OverviewPageState extends State<OverviewPage> {
       backgroundColor: background,
       appBar: const AppHeader(),
       bottomNavigationBar: const BottomNav(isStaff: false),
-
       body: SafeArea(
         top: false,
-        child: RefreshIndicator(
-          color: purple,
-          onRefresh: () async {
-            await Future.delayed(const Duration(milliseconds: 700));
-          },
-          child: ListView(
-            padding: const EdgeInsets.only(bottom: 28),
-            children: [
-              _storiesSection(),
-              _greetingSection(),
-              _statisticsSection(),
-              _activitySection(),
-              _enquiriesSection(),
-              _offersSection(),
-            ],
-          ),
-        ),
+        child: _loading
+            ? const Center(child: CircularProgressIndicator(color: purple))
+            : _error != null
+            ? _errorView()
+            : RefreshIndicator(
+                color: purple,
+                onRefresh: _fetchOverview,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.only(bottom: 28),
+                  children: [
+                    _greetingSection(),
+                    _statisticsSection(),
+                    _activitySection(),
+                    _enquiriesSection(),
+                    _offersSection(),
+                  ],
+                ),
+              ),
       ),
     );
   }
 
-  // STORIES SECTION
-  Widget _storiesSection() {
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Text(
-                'Community updates',
-                style: TextStyle(
-                  color: ink,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const Spacer(),
-              TextButton(
-                onPressed: () => context.go('/news'),
-                child: const Text(
-                  'View all',
-                  style: TextStyle(
-                    color: purple,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 100,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: stories.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 18),
-              itemBuilder: (context, index) {
-                final story = stories[index];
-                final color = story['color'] as Color;
-
-                return GestureDetector(
-                  onTap: () {
-                    if (index == 1 || index == 2) {
-                      context.go('/news');
-                    }
-                  },
-                  child: SizedBox(
-                    width: 64,
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: purple, width: 2),
-                          ),
-                          child: Container(
-                            width: 54,
-                            height: 54,
-                            decoration: BoxDecoration(
-                              color: color,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(
-                              child: story['isOwn'] == true
-                                  ? const Icon(
-                                      Icons.add,
-                                      color: Colors.white,
-                                      size: 27,
-                                    )
-                                  : Text(
-                                      story['initial'],
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 21,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 7),
-                        Text(
-                          story['name'],
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: ink,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+  Widget _errorView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off_rounded, size: 42, color: muted),
+            const SizedBox(height: 12),
+            Text(
+              _error ?? 'Something went wrong.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: ink, fontSize: 14),
             ),
-          ),
-        ],
+            const SizedBox(height: 14),
+            ElevatedButton(
+              onPressed: _fetchOverview,
+              style: ElevatedButton.styleFrom(backgroundColor: purple),
+              child: const Text('Retry', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -301,7 +235,7 @@ class _OverviewPageState extends State<OverviewPage> {
                   ),
                   const SizedBox(height: 9),
                   Text(
-                    'Hi, $userName!',
+                    'Hi, ${_text(_profile['fullName'], 'Member')}!',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 25,
@@ -309,9 +243,24 @@ class _OverviewPageState extends State<OverviewPage> {
                     ),
                   ),
                   const SizedBox(height: 7),
-                  const Text(
-                    'Stay connected. Keep growing.',
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                  Text(
+                    [
+                              _text((_profile['chapter'] as Map?)?['name']),
+                              _text(_profile['city']),
+                            ]
+                            .where((value) => value.isNotEmpty)
+                            .toSet()
+                            .join(' • ')
+                            .isNotEmpty
+                        ? [
+                                _text((_profile['chapter'] as Map?)?['name']),
+                                _text(_profile['city']),
+                              ]
+                              .where((value) => value.isNotEmpty)
+                              .toSet()
+                              .join(' • ')
+                        : 'Stay connected. Keep growing.',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                   const SizedBox(height: 15),
                   Container(
@@ -334,7 +283,7 @@ class _OverviewPageState extends State<OverviewPage> {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          membership,
+                          '${_text(_profile['membershipType'], 'Member')} Member',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 10,
@@ -355,10 +304,22 @@ class _OverviewPageState extends State<OverviewPage> {
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white30, width: 1.5),
               ),
-              child: const Icon(
-                Icons.person_rounded,
-                color: Colors.white,
-                size: 43,
+              child: ClipOval(
+                child: _text(_profile['photoUrl']).isNotEmpty
+                    ? Image.network(
+                        _text(_profile['photoUrl']),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Icon(
+                          Icons.person_rounded,
+                          color: Colors.white,
+                          size: 43,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.person_rounded,
+                        color: Colors.white,
+                        size: 43,
+                      ),
               ),
             ),
           ],
@@ -386,35 +347,35 @@ class _OverviewPageState extends State<OverviewPage> {
             children: [
               _statCard(
                 'Total Enquiries',
-                '${statistics['totalEnquiries']}',
+                '${_number(_stats['totalEnquiries'])}',
                 Icons.mark_email_unread_outlined,
                 const Color(0xFFECE4FF),
                 purple,
-                '+12%',
+                'All enquiries',
               ),
               _statCard(
                 'Pending Enquiries',
-                '${statistics['pendingEnquiries']}',
+                '${_number(_stats['pendingEnquiries'])}',
                 Icons.pending_actions_rounded,
                 const Color(0xFFFFECDD),
                 const Color(0xFFE18A42),
-                'Needs attention',
+                'Awaiting response',
               ),
               _statCard(
                 'Completed',
-                '${statistics['completedEnquiries']}',
+                '${_number(_stats['completedEnquiries'])}',
                 Icons.task_alt_rounded,
                 const Color(0xFFDFF3E8),
                 const Color(0xFF29986B),
-                '+8 this month',
+                'Resolved enquiries',
               ),
               _statCard(
                 'Active Offers',
-                '${statistics['totalOffers']}',
+                '${_number(_stats['activeOffers'])}',
                 Icons.local_offer_outlined,
                 const Color(0xFFE3EBFF),
                 const Color(0xFF4B75D1),
-                'Available now',
+                'Currently active',
               ),
             ],
           ),
@@ -568,8 +529,10 @@ class _OverviewPageState extends State<OverviewPage> {
               width: double.infinity,
               child: CustomPaint(
                 painter: _ActivityChartPainter(
-                  values: weeklyActivity,
-                  labels: weekdays,
+                  values: _weeklyEnquiries
+                      .map((e) => _number(e['count']).toDouble())
+                      .toList(),
+                  labels: _weeklyEnquiries.map((e) => _text(e['day'])).toList(),
                   purple: purple,
                   gridColor: border,
                   textColor: muted,
@@ -597,69 +560,76 @@ class _OverviewPageState extends State<OverviewPage> {
     );
   }
 
-  // ENQUIRIES SECTION
+  // RECENT ENQUIRIES FROM OVERVIEW API
   Widget _enquiriesSection() {
+    final items = _recentEnquiries;
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 27, 18, 0),
       child: Column(
         children: [
           _sectionHeading(
             'Recent enquiries',
-            'Latest messages from your community',
+            'Latest enquiries from your community',
             action: 'View all',
             onAction: () => context.go('/'),
           ),
           const SizedBox(height: 13),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: border),
+          if (items.isEmpty)
+            _emptyCard('No recent enquiries found.')
+          else
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: border),
+              ),
+              child: Column(
+                children: items.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final item = entry.value;
+                  return Column(
+                    children: [
+                      _enquiryTile(item),
+                      if (index != items.length - 1)
+                        const Divider(
+                          height: 1,
+                          indent: 16,
+                          endIndent: 16,
+                          color: border,
+                        ),
+                    ],
+                  );
+                }).toList(),
+              ),
             ),
-            child: Column(
-              children: enquiries.asMap().entries.map((entry) {
-                final index = entry.key;
-                final item = entry.value;
-
-                return Column(
-                  children: [
-                    _enquiryTile(item),
-                    if (index != enquiries.length - 1)
-                      const Divider(
-                        height: 1,
-                        indent: 16,
-                        endIndent: 16,
-                        color: border,
-                      ),
-                  ],
-                );
-              }).toList(),
-            ),
-          ),
         ],
       ),
     );
   }
 
   Widget _enquiryTile(Map<String, dynamic> item) {
-    final status = item['status'] as String;
+    final status = _text(item['status'], 'UNKNOWN').toUpperCase();
+    final title = _text(item['title'], 'Untitled enquiry');
+    final category = _text(item['category'], 'General');
+    final createdAt = _text(item['createdAt']);
 
     Color statusColor;
     Color statusBackground;
-
-    switch (status) {
-      case 'New':
-        statusColor = const Color(0xFF4C73D1);
-        statusBackground = const Color(0xFFEAF0FF);
-        break;
-      case 'In Progress':
-        statusColor = const Color(0xFFD48A37);
-        statusBackground = const Color(0xFFFFF2DF);
-        break;
-      default:
-        statusColor = const Color(0xFF29986B);
-        statusBackground = const Color(0xFFE2F5EB);
+    if (status == 'NEW' || status == 'NEW') {
+      statusColor = const Color(0xFF4C73D1);
+      statusBackground = const Color(0xFFEAF0FF);
+    } else if (status == 'PENDING' || status == 'IN_PROGRESS') {
+      statusColor = const Color(0xFFD48A37);
+      statusBackground = const Color(0xFFFFF2DF);
+    } else if (status == 'COMPLETED' || status == 'RESOLVED') {
+      statusColor = const Color(0xFF29986B);
+      statusBackground = const Color(0xFFE2F5EB);
+    } else {
+      statusColor = muted;
+      statusBackground = const Color(0xFFF0EEF4);
     }
+
+    final initial = title.isNotEmpty ? title[0].toUpperCase() : 'E';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
@@ -667,11 +637,19 @@ class _OverviewPageState extends State<OverviewPage> {
         children: [
           CircleAvatar(
             radius: 22,
-            backgroundColor: item['color'],
-            child: Text(
-              item['initial'],
-              style: const TextStyle(color: ink, fontWeight: FontWeight.w800),
-            ),
+            backgroundColor: const Color(0xFFE9DFFF),
+            backgroundImage: _text(item['imageUrl']).isNotEmpty
+                ? NetworkImage(_text(item['imageUrl']))
+                : null,
+            child: _text(item['imageUrl']).isEmpty
+                ? Text(
+                    initial,
+                    style: const TextStyle(
+                      color: ink,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  )
+                : null,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -679,7 +657,9 @@ class _OverviewPageState extends State<OverviewPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item['name'],
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: ink,
                     fontSize: 13,
@@ -688,19 +668,21 @@ class _OverviewPageState extends State<OverviewPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  item['subject'],
+                  category,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: muted, fontSize: 11),
                 ),
-                const SizedBox(height: 5),
-                Text(
-                  item['date'],
-                  style: const TextStyle(
-                    color: Color(0xFFA29DAF),
-                    fontSize: 10,
+                if (createdAt.isNotEmpty) ...[
+                  const SizedBox(height: 5),
+                  Text(
+                    _formatDate(createdAt),
+                    style: const TextStyle(
+                      color: Color(0xFFA29DAF),
+                      fontSize: 10,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -725,8 +707,46 @@ class _OverviewPageState extends State<OverviewPage> {
     );
   }
 
-  // OFFERS SECTION
+  String _formatDate(String value) {
+    final date = DateTime.tryParse(value)?.toLocal();
+    if (date == null) return value;
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  Widget _emptyCard(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: border),
+      ),
+      child: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: muted, fontSize: 12),
+      ),
+    );
+  }
+
+  // LATEST OFFERS FROM OVERVIEW API
   Widget _offersSection() {
+    final items = _latestOffers;
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 27, 18, 0),
       child: Column(
@@ -738,131 +758,130 @@ class _OverviewPageState extends State<OverviewPage> {
             onAction: () => context.go('/offers'),
           ),
           const SizedBox(height: 13),
-          ...offers.map(_offerCard),
+          if (items.isEmpty)
+            _emptyCard('No offers available right now.')
+          else
+            ...items.map(_offerCard),
         ],
       ),
     );
   }
 
   Widget _offerCard(Map<String, dynamic> offer) {
-    final color = offer['color'] as Color;
-    final icon = offer['icon'] as IconData;
+    final imageUrl = _text(offer['imageUrl']);
+    final expiryDate = _text(offer['expiryDate']);
+    final category = _text(offer['category'], 'Offer');
+    final redirectUrl = _text(offer['redirectUrl'], '/offers');
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 13),
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(21),
-        border: Border.all(color: border),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 53,
-            height: 53,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(16),
+    return InkWell(
+      borderRadius: BorderRadius.circular(21),
+      //onTap: () => context.go(redirectUrl),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 13),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(21),
+          border: Border.all(color: border),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x08000000),
+              blurRadius: 12,
+              offset: Offset(0, 4),
             ),
-            child: Icon(icon, color: purpleDark, size: 25),
-          ),
-          const SizedBox(width: 13),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        offer['title'],
-                        style: const TextStyle(
-                          color: ink,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: imageUrl.isNotEmpty
+                  ? Image.network(
+                      imageUrl,
+                      width: 76,
+                      height: 76,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _offerPlaceholder(),
+                    )
+                  : _offerPlaceholder(),
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _text(offer['title'], 'Untitled offer'),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: ink,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
                     ),
-                    const SizedBox(width: 5),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: color,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        offer['tag'],
-                        style: const TextStyle(
-                          color: purpleDark,
-                          fontSize: 8,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  offer['description'],
-                  style: const TextStyle(
-                    color: muted,
-                    fontSize: 11,
-                    height: 1.4,
                   ),
-                ),
-                const SizedBox(height: 9),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.calendar_month_outlined,
-                      size: 13,
+                  const SizedBox(height: 5),
+                  Text(
+                    category,
+                    style: const TextStyle(
                       color: purple,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
                     ),
-                    const SizedBox(width: 5),
-                    Expanded(
-                      child: Text(
-                        offer['validity'],
-                        style: const TextStyle(
-                          color: muted,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    _text(offer['description']),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: muted,
+                      fontSize: 11,
+                      height: 1.35,
                     ),
-                    TextButton(
-                      onPressed: () => context.go('/offers'),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 7),
-                        minimumSize: const Size(0, 30),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text(
-                        'Explore',
-                        style: TextStyle(
+                  ),
+                  if (expiryDate.isNotEmpty) ...[
+                    const SizedBox(height: 7),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.calendar_month_outlined,
+                          size: 13,
                           color: purple,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
                         ),
-                      ),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            'Valid until ${_formatDate(expiryDate)}',
+                            style: const TextStyle(
+                              color: muted,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _offerPlaceholder() {
+    return Container(
+      width: 76,
+      height: 76,
+      color: const Color(0xFFECE4FF),
+      child: const Icon(
+        Icons.local_offer_outlined,
+        color: purpleDark,
+        size: 30,
       ),
     );
   }
@@ -941,7 +960,9 @@ class _ActivityChartPainter extends CustomPainter {
 
     final chartWidth = size.width - left - right;
     final chartHeight = size.height - top - bottom;
-    const maxValue = 40.0;
+    final maxValue = values.fold<double>(0, (m, v) => v > m ? v : m) <= 0
+        ? 1.0
+        : values.fold<double>(0, (m, v) => v > m ? v : m);
 
     final gridPaint = Paint()
       ..color = gridColor
@@ -963,7 +984,10 @@ class _ActivityChartPainter extends CustomPainter {
       );
 
       final textPainter = TextPainter(
-        text: TextSpan(text: '${40 - i * 10}', style: textStyle),
+        text: TextSpan(
+          text: '${(maxValue - (maxValue * i / 4)).round()}',
+          style: textStyle,
+        ),
         textDirection: TextDirection.ltr,
       )..layout();
 
@@ -973,7 +997,9 @@ class _ActivityChartPainter extends CustomPainter {
     final points = <Offset>[];
 
     for (int i = 0; i < values.length; i++) {
-      final x = left + chartWidth * i / (values.length - 1);
+      final x = values.length == 1
+          ? left + chartWidth / 2
+          : left + chartWidth * i / (values.length - 1);
       final y = top + chartHeight * (1 - values[i] / maxValue);
 
       points.add(Offset(x, y));

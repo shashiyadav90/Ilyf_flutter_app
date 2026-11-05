@@ -1,3 +1,5 @@
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -6,7 +8,7 @@ import '../../components/app_header.dart';
 import '../../components/bottom_nav.dart';
 import '../../core/config/api_config.dart';
 
-// function: GET /businesses.
+// API: GET /api/businesses/{id}
 class MemberCardPage extends StatefulWidget {
   const MemberCardPage({super.key, required this.id});
 
@@ -38,9 +40,13 @@ class _MemberCardPageState extends State<MemberCardPage> {
   @override
   void didUpdateWidget(covariant MemberCardPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.id != widget.id) _loadMember();
+
+    if (oldWidget.id != widget.id) {
+      _loadMember();
+    }
   }
 
+  // GET /api/businesses/{id}
   Future<void> _loadMember() async {
     setState(() {
       _loading = true;
@@ -49,68 +55,103 @@ class _MemberCardPageState extends State<MemberCardPage> {
     });
 
     try {
-      final response = await ApiConfig.dio.get('/businesses');
-      final dynamic payload = response.data;
-      final List<dynamic> rows;
-      if (payload is List) {
-        rows = payload;
-      } else if (payload is Map<String, dynamic> && payload['data'] is List) {
-        rows = payload['data'] as List<dynamic>;
-      } else if (payload is Map && payload['data'] is List) {
-        rows = payload['data'] as List<dynamic>;
-      } else {
-        rows = const [];
-      }
+      final response = await ApiConfig.dio.get<dynamic>(
+        '/businesses/${Uri.encodeComponent(widget.id)}',
+      );
 
-      Map<String, dynamic>? found;
-      for (final row in rows) {
-        if (row is! Map) continue;
-        final item = Map<String, dynamic>.from(row);
-        final itemId = (item['id'] ?? item['_id'] ?? item['businessId'] ?? '')
-            .toString();
-        if (itemId == widget.id) {
-          found = item;
-          break;
+      final payload = response.data;
+
+      Map<String, dynamic>? business;
+
+      if (payload is Map) {
+        dynamic data = payload['data'] ??
+            payload['business'] ??
+            payload;
+
+        if (data is Map) {
+          if (data['business'] is Map) {
+            data = data['business'];
+          }
+
+          business = Map<String, dynamic>.from(data);
         }
       }
 
       if (!mounted) return;
+
       setState(() {
-        _listing = found;
-        if (found == null) _error = 'This member is not in the directory.';
+        _listing = business;
+
+        if (business == null || business.isEmpty) {
+          _error = 'This member is not in the directory.';
+        }
       });
+    } on DioException catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        if (e.response?.statusCode == 404) {
+          _error = 'This member is not in the directory.';
+        } else if (e.response?.statusCode == 401) {
+          _error = 'Please log in to view this member.';
+        } else {
+          _error = _readableError(e);
+        }
+      });
+
+      if (e.response?.statusCode == 401 && mounted) {
+        context.go('/login?next=/members/${widget.id}');
+      }
     } catch (e) {
       if (!mounted) return;
+
       setState(() {
         _error = _readableError(e);
       });
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
   String _readableError(Object error) {
-    final text = error.toString();
-    if (text.contains('SocketException') || text.contains('connection')) {
-      return 'Could not connect to the server. Check your internet connection and try again.';
+    if (error is DioException) {
+      if (error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.receiveTimeout) {
+        return 'The server is taking too long to respond. Please try again.';
+      }
+
+      if (error.type == DioExceptionType.connectionError) {
+        return 'Could not connect to the server. Check your internet connection.';
+      }
+
+      return error.response?.data is Map
+          ? (error.response?.data['message']?.toString() ??
+              'Could not load this member. Please try again.')
+          : 'Could not load this member. Please try again.';
     }
-    return 'Could not load this card. Please try again.';
+
+    return 'Could not load this member. Please try again.';
   }
 
   String _value(dynamic value, [String fallback = '']) {
     if (value == null) return fallback;
+
     final text = value.toString().trim();
     return text.isEmpty ? fallback : text;
   }
 
   List<String> _services() {
     final raw = _listing?['services'];
+
     if (raw is List) {
       return raw
           .map((item) => item.toString().trim())
           .where((item) => item.isNotEmpty)
           .toList();
     }
+
     if (raw is String && raw.trim().isNotEmpty) {
       return raw
           .split(',')
@@ -118,27 +159,33 @@ class _MemberCardPageState extends State<MemberCardPage> {
           .where((s) => s.isNotEmpty)
           .toList();
     }
+
     return const [];
   }
 
   String _memberType() {
     final item = _listing ?? {};
+
     final raw = _value(
       item['memberType'] ??
           item['membershipType'] ??
           item['type'] ??
           item['memberCategory'],
     );
+
     if (raw.isNotEmpty) return raw;
 
     final lifetime =
         item['lifetimePatron'] == true ||
         item['isLifetimePatron'] == true ||
         _value(item['membershipNo']).toLowerCase().contains('patron');
+
     if (lifetime) return 'Lifetime Patron';
 
     final category = _value(item['category']).toLowerCase();
+
     if (category.contains('patron')) return 'Patron';
+
     return 'ILYF Member';
   }
 
@@ -149,18 +196,25 @@ class _MemberCardPageState extends State<MemberCardPage> {
 
   String _initials() {
     final name = _value(_listing?['ownerName'], 'Member');
+
     final parts = name
         .split(RegExp(r'\s+'))
         .where((p) => p.isNotEmpty)
         .toList();
+
     if (parts.isEmpty) return 'M';
-    if (parts.length == 1) return parts.first.characters.first.toUpperCase();
+
+    if (parts.length == 1) {
+      return parts.first.characters.first.toUpperCase();
+    }
+
     return '${parts.first.characters.first}${parts.last.characters.first}'
         .toUpperCase();
   }
 
   String? _photoUrl() {
     final item = _listing ?? {};
+
     final candidates = [
       item['photoUrl'],
       item['imageUrl'],
@@ -169,33 +223,52 @@ class _MemberCardPageState extends State<MemberCardPage> {
       item['photo'],
       item['avatar'],
     ];
+
     for (final candidate in candidates) {
       final value = _value(candidate);
-      if (value.startsWith('https://') || value.startsWith('http://'))
+
+      if (value.startsWith('https://') ||
+          value.startsWith('http://')) {
         return value;
+      }
     }
+
     return null;
   }
 
   Future<void> _openExternal(String value) async {
     final uri = Uri.tryParse(value);
+
     if (uri == null) return;
-    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+    final ok = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+
     if (!ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open that link.')),
+        const SnackBar(
+          content: Text('Could not open that link.'),
+        ),
       );
     }
   }
 
   Future<void> _callMember() async {
     final phone = _value(_listing?['phone']);
-    if (phone.isNotEmpty) await _openExternal('tel:$phone');
+
+    if (phone.isNotEmpty) {
+      await _openExternal('tel:$phone');
+    }
   }
 
   Future<void> _emailMember() async {
     final email = _value(_listing?['email']);
-    if (email.isNotEmpty) await _openExternal('mailto:$email');
+
+    if (email.isNotEmpty) {
+      await _openExternal('mailto:$email');
+    }
   }
 
   @override
@@ -214,12 +287,13 @@ class _MemberCardPageState extends State<MemberCardPage> {
         child: _loading
             ? _buildLoading()
             : listing == null
-            ? _buildError()
-            : _buildDetails(listing, type, imageUrl),
+                ? _buildError()
+                : _buildDetails(listing, type, imageUrl),
       ),
-      bottomNavigationBar: BottomNav(isStaff: false),
+      bottomNavigationBar: const BottomNav(isStaff: false),
     );
   }
+
 
   Widget _buildLoading() {
     return ListView(

@@ -2,9 +2,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '../../components/app_header.dart';
 import '../../components/bottom_nav.dart';
-
 import '../../data/models/member.dart';
 import '../../core/config/api_config.dart';
 import '../../main.dart';
@@ -27,12 +27,16 @@ class _MembersPageState extends State<MembersPage> {
   bool get _signedIn => authService.isLoggedIn;
 
   static const directoryEndpoint = '/businesses';
+  static const filtersEndpoint = '/businesses/filters';
 
   final _searchController = TextEditingController();
+
   List<Member> _members = [];
   List<String> _chapters = [...defaultChapters];
+
   String _selectedChapter = 'All';
   String _search = '';
+
   bool _loading = true;
   String? _error;
 
@@ -57,49 +61,150 @@ class _MembersPageState extends State<MembersPage> {
     super.dispose();
   }
 
+  // GET /api/businesses
+  Future<List<Member>> _fetchMembers() async {
+    final response = await ApiConfig.dio.get<dynamic>(
+      directoryEndpoint,
+    );
+
+    final body = response.data;
+    dynamic list = body;
+
+    if (body is Map) {
+      list = body['data'] ??
+          body['businesses'] ??
+          body['members'] ??
+          body['listings'] ??
+          body['results'] ??
+          body['items'];
+
+      if (list is Map) {
+        list = list['data'] ??
+            list['businesses'] ??
+            list['members'] ??
+            list['listings'] ??
+            list['items'];
+      }
+    }
+
+    if (list is! List) {
+      throw const FormatException(
+        'Directory response did not contain a members list.',
+      );
+    }
+
+    return list
+        .whereType<Map>()
+        .map(
+          (item) => Member.fromJson(
+            Map<String, dynamic>.from(item),
+          ),
+        )
+        .toList();
+  }
+
+  // GET /api/businesses/filters
+  Future<List<String>> _fetchChapterFilters() async {
+    final response = await ApiConfig.dio.get<dynamic>(
+      filtersEndpoint,
+    );
+
+    final body = response.data;
+    dynamic data = body;
+
+    if (data is Map) {
+      data = data['data'] ?? data['filters'] ?? data;
+    }
+
+    if (data is Map) {
+      data = data['chapters'] ??
+          data['chapter'] ??
+          data['chapterFilters'] ??
+          data['locations'] ??
+          [];
+    }
+
+    if (data is! List) {
+      return [];
+    }
+
+    return data
+        .map((item) {
+          if (item is Map) {
+            return (item['name'] ??
+                    item['label'] ??
+                    item['value'] ??
+                    item['chapter'] ??
+                    '')
+                .toString()
+                .trim();
+          }
+
+          return item.toString().trim();
+        })
+        .where((chapter) =>
+            chapter.isNotEmpty && chapter != 'ILYF Trust')
+        .toSet()
+        .toList();
+  }
+
+  // Load directory and filters
   Future<void> _loadMembers() async {
     setState(() {
       _loading = true;
       _error = null;
     });
+
     try {
-      final response = await ApiConfig.dio.get<dynamic>(directoryEndpoint);
-      final body = response.data;
-      dynamic list = body;
-      if (body is Map) {
-        list =
-            body['data'] ??
-            body['members'] ??
-            body['listings'] ??
-            body['results'] ??
-            body['items'];
-        if (list is Map) {
-          list = list['data'] ?? list['members'] ?? list['listings'];
-        }
-      }
-      if (list is! List) {
-        throw const FormatException(
-          'Directory response did not contain a members list.',
+      // Fetch directory
+      final loaded = await _fetchMembers();
+
+      // Fetch filters separately so directory still works
+      // if the filters endpoint fails.
+      List<String> apiChapters = [];
+
+      try {
+        apiChapters = await _fetchChapterFilters();
+      } on DioException catch (e) {
+        debugPrint(
+          'Business filters API error: ${e.message}',
         );
+      } catch (e) {
+        debugPrint('Business filters parsing error: $e');
       }
-      final loaded = list
-          .whereType<Map>()
-          .map((item) => Member.fromJson(Map<String, dynamic>.from(item)))
-          .toList();
-      final live =
-          loaded
-              .map((m) => m.effectiveChapter.trim())
-              .where((c) => c.isNotEmpty && c != 'ILYF Trust')
-              .toSet()
-              .toList()
-            ..sort();
+
+      final liveChapters = loaded
+          .map((member) => member.effectiveChapter.trim())
+          .where(
+            (chapter) =>
+                chapter.isNotEmpty && chapter != 'ILYF Trust',
+          )
+          .toSet();
+
+      final allChapters = {
+        ...apiChapters,
+        ...liveChapters,
+      }.toList()
+        ..sort();
+
       if (!mounted) return;
+
       setState(() {
         _members = sortMembers(loaded);
+
         _chapters = [
           ...defaultChapters,
-          ...live.where((c) => !defaultChapters.contains(c)),
+          ...allChapters.where(
+            (chapter) => !defaultChapters.contains(chapter),
+          ),
         ];
+
+        // Reset selection if it is no longer available.
+        if (_selectedChapter != 'All' &&
+            !_chapters.contains(_selectedChapter)) {
+          _selectedChapter = 'All';
+        }
+
         _loading = false;
       });
     } on DioException catch (e) {
@@ -111,61 +216,89 @@ class _MembersPageState extends State<MembersPage> {
       }
 
       setState(() {
-        _error = e.message ?? 'Could not load members.';
+        _error = e.response?.data is Map
+            ? (e.response?.data['message']?.toString() ??
+                e.message ??
+                'Could not load members.')
+            : e.message ?? 'Could not load members.';
+
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
+
       setState(() {
-        _error = e.toString().replaceFirst('FormatException: ', '');
+        _error = e.toString().replaceFirst(
+          'FormatException: ',
+          '',
+        );
         _loading = false;
       });
     }
   }
 
+  // Local search and chapter filtering
   List<Member> get _visibleMembers {
     final query = _search.trim().toLowerCase();
+
     return sortMembers(
-      _members.where((m) {
-        final matchesChapter =
-            _selectedChapter == 'All' || m.effectiveChapter == _selectedChapter;
+      _members.where((member) {
+        final matchesChapter = _selectedChapter == 'All' ||
+            member.effectiveChapter == _selectedChapter;
+
         final searchable = [
-          m.name,
-          m.ownerName,
-          m.category,
-          m.effectiveChapter,
-          m.membershipNo,
-          m.membershipType,
-          m.membership,
-          m.id,
+          member.name,
+          member.ownerName,
+          member.category,
+          member.effectiveChapter,
+          member.membershipNo,
+          member.membershipType,
+          member.membership,
+          member.id,
         ].join(' ').toLowerCase();
-        return matchesChapter && (query.isEmpty || searchable.contains(query));
+
+        return matchesChapter &&
+            (query.isEmpty || searchable.contains(query));
       }).toList(),
     );
   }
 
   Future<void> _openSocial(String url, String label) async {
     if (url.trim().isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('$label link is not available.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$label link is not available.'),
+        ),
+      );
       return;
     }
-    final normalized = url.startsWith('http://') || url.startsWith('https://')
-        ? url
-        : 'https://$url';
+
+    final normalized =
+        url.startsWith('http://') || url.startsWith('https://')
+            ? url
+            : 'https://$url';
+
     final uri = Uri.tryParse(normalized);
+
     if (uri == null ||
-        !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        !await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        )) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Could not open $label link.')));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not open $label link.'),
+        ),
+      );
     }
   }
 
   void _openProfile(Member member) {
-    context.push('/members/${Uri.encodeComponent(member.id)}');
+    context.push(
+      '/members/${Uri.encodeComponent(member.id)}',
+    );
   }
 
   @override
@@ -173,7 +306,9 @@ class _MembersPageState extends State<MembersPage> {
     if (!_signedIn) {
       return const Scaffold(
         backgroundColor: Color(0xFFF4EFFF),
-        body: Center(child: CircularProgressIndicator(color: purple)),
+        body: Center(
+          child: CircularProgressIndicator(color: purple),
+        ),
       );
     }
 
@@ -187,20 +322,30 @@ class _MembersPageState extends State<MembersPage> {
           color: purple,
           onRefresh: _loadMembers,
           child: CustomScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            keyboardDismissBehavior:
+                ScrollViewKeyboardDismissBehavior.onDrag,
             slivers: [
               SliverToBoxAdapter(child: _hero()),
+
               SliverPersistentHeader(
                 pinned: true,
-                delegate: _PinnedHeader(child: _chapterPills(), height: 62),
+                delegate: _PinnedHeader(
+                  child: _chapterPills(),
+                  height: 62,
+                ),
               ),
-              SliverToBoxAdapter(child: _listHeading(visible.length)),
+
+              SliverToBoxAdapter(
+                child: _listHeading(visible.length),
+              ),
 
               if (_loading)
                 const SliverFillRemaining(
                   hasScrollBody: false,
                   child: Center(
-                    child: CircularProgressIndicator(color: purple),
+                    child: CircularProgressIndicator(
+                      color: purple,
+                    ),
                   ),
                 )
               else if (_error != null)
@@ -228,6 +373,15 @@ class _MembersPageState extends State<MembersPage> {
                             ),
                           ),
                           const SizedBox(height: 12),
+                          Text(
+                            _error!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: muted,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
                           TextButton.icon(
                             onPressed: _loadMembers,
                             icon: const Icon(Icons.refresh),
@@ -248,25 +402,35 @@ class _MembersPageState extends State<MembersPage> {
                         'No members match your search. '
                         'Try another name or chapter.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: muted, height: 1.5),
+                        style: TextStyle(
+                          color: muted,
+                          height: 1.5,
+                        ),
                       ),
                     ),
                   ),
                 )
               else
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
+                  padding: const EdgeInsets.fromLTRB(
+                    12,
+                    0,
+                    12,
+                    20,
+                  ),
                   sliver: SliverLayoutBuilder(
                     builder: (context, constraints) {
                       final width = constraints.crossAxisExtent;
+
                       final columns = width >= 900
                           ? 3
                           : width >= 600
-                          ? 2
-                          : 1;
+                              ? 2
+                              : 1;
 
                       return SliverGrid(
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        gridDelegate:
+                            SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: columns,
                           crossAxisSpacing: 14,
                           mainAxisSpacing: 14,
@@ -275,7 +439,8 @@ class _MembersPageState extends State<MembersPage> {
                         delegate: SliverChildBuilderDelegate(
                           (context, index) => _MemberCard(
                             member: visible[index],
-                            onTap: () => _openProfile(visible[index]),
+                            onTap: () =>
+                                _openProfile(visible[index]),
                             onSocialTap: _openSocial,
                           ),
                           childCount: visible.length,
