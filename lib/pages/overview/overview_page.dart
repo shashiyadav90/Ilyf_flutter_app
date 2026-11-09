@@ -6,6 +6,11 @@ import '../../components/app_header.dart';
 import '../../components/bottom_nav.dart';
 import '../../core/config/api_config.dart';
 import '../../main.dart';
+import 'dart:async';
+import '../../data/models/story_model.dart';
+import '../../services/story_service.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:video_player/video_player.dart';
 
 class OverviewPage extends StatefulWidget {
   const OverviewPage({super.key});
@@ -21,6 +26,14 @@ class _OverviewPageState extends State<OverviewPage> {
   static const Color ink = Color(0xFF1A1433);
   static const Color muted = Color(0xFF898398);
   static const Color border = Color(0xFFECE8F3);
+
+  final StoryService _storyService = StoryService();
+  final ImagePicker _imagePicker = ImagePicker();
+
+  List<StoryModel> _myStories = [];
+  List<StoryMemberGroup> _storyMembers = [];
+
+  bool _storiesLoading = false;
 
   Map<String, dynamic> _overview = {};
   bool _loading = true;
@@ -59,6 +72,368 @@ class _OverviewPageState extends State<OverviewPage> {
   int _number(dynamic value) {
     if (value is num) return value.toInt();
     return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  void _readStoriesFromOverview(Map<String, dynamic> data) {
+    final stories = data['stories'];
+
+    if (stories is! Map) {
+      _myStories = [];
+      _storyMembers = [];
+      return;
+    }
+
+    final myStoriesData = stories['myStories'] is List
+        ? stories['myStories'] as List
+        : [];
+
+    final membersData = stories['members'] is List
+        ? stories['members'] as List
+        : [];
+
+    _myStories = myStoriesData
+        .whereType<Map>()
+        .map((item) => StoryModel.fromJson(Map<String, dynamic>.from(item)))
+        .toList();
+
+    _storyMembers = membersData
+        .whereType<Map>()
+        .map(
+          (item) => StoryMemberGroup.fromJson(Map<String, dynamic>.from(item)),
+        )
+        .toList();
+  }
+
+  Future<void> _fetchStories() async {
+    if (mounted) {
+      setState(() => _storiesLoading = true);
+    }
+
+    try {
+      final data = await _storyService.getStories();
+
+      final myStoriesData = data['myStories'] is List
+          ? data['myStories'] as List
+          : [];
+
+      final membersData = data['members'] is List
+          ? data['members'] as List
+          : [];
+
+      if (!mounted) return;
+
+      setState(() {
+        _myStories = myStoriesData
+            .whereType<Map>()
+            .map((item) => StoryModel.fromJson(Map<String, dynamic>.from(item)))
+            .toList();
+
+        _storyMembers = membersData
+            .whereType<Map>()
+            .map(
+              (item) =>
+                  StoryMemberGroup.fromJson(Map<String, dynamic>.from(item)),
+            )
+            .toList();
+
+        _storiesLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() => _storiesLoading = false);
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Unable to load stories: $e')));
+    }
+  }
+
+  void _showCreateStoryOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Create a story',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: ink,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                ListTile(
+                  leading: const Icon(Icons.image_outlined, color: purple),
+                  title: const Text('Upload image'),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _pickStoryMedia('IMAGE');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.videocam_outlined, color: purple),
+                  title: const Text('Upload video'),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _pickStoryMedia('VIDEO');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.text_fields, color: purple),
+                  title: const Text('Create text story'),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _createTextStory();
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _pickStoryMedia(String mediaType) async {
+    try {
+      final XFile? file = mediaType == 'IMAGE'
+          ? await _imagePicker.pickImage(source: ImageSource.gallery)
+          : await _imagePicker.pickVideo(source: ImageSource.gallery);
+
+      if (file == null) return;
+
+      await _uploadStory(mediaType: mediaType, file: file);
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Unable to select media: $e')));
+    }
+  }
+
+  Future<void> _uploadStory({
+    required String mediaType,
+    XFile? file,
+    String? text,
+  }) async {
+    try {
+      await _storyService.createStory(
+        mediaType: mediaType,
+        file: file,
+        text: text,
+      );
+
+      await _fetchStories();
+    } catch (e) {
+      debugPrint('Story upload error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> _openMemberStories(StoryMemberGroup group) async {
+    if (group.stories.isEmpty) return;
+
+    await showDialog(
+      context: context,
+      builder: (_) => _StoryListDialog(
+        memberName: _text(group.member['fullName'], 'Member'),
+        stories: group.stories,
+        onViewStory: (storyId) async {
+          await _storyService.viewStory(storyId);
+        },
+      ),
+    );
+
+    if (mounted) {
+      await _fetchStories();
+    }
+  }
+
+  Future<void> _createTextStory() async {
+    final controller = TextEditingController();
+
+    final text = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Create text story'),
+          content: TextField(
+            controller: controller,
+            maxLines: 4,
+            maxLength: 500,
+            decoration: const InputDecoration(
+              hintText: 'Write something for your community...',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final value = controller.text.trim();
+                if (value.isNotEmpty) {
+                  Navigator.pop(dialogContext, value);
+                }
+              },
+              child: const Text('Share'),
+            ),
+          ],
+        );
+      },
+    );
+
+    controller.dispose();
+
+    if (text == null || text.isEmpty) return;
+
+    await _uploadStory(mediaType: 'TEXT', text: text);
+  }
+
+  Future<void> _openMyStories() async {
+    if (_myStories.isEmpty) {
+      _showCreateStoryOptions();
+      return;
+    }
+
+    await showDialog(
+      context: context,
+      builder: (_) => _StoryListDialog(
+        memberName: 'Your story',
+        stories: _myStories,
+        onShowStoryViews: _showStoryViews,
+        onLoadViewCount: _loadStoryViewCount,
+      ),
+    );
+  }
+
+  Future<void> _deleteStory(String storyId) async {
+    try {
+      await _storyService.deleteStory(storyId);
+      await _fetchStories();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Story deleted successfully')),
+      );
+    } on DioException catch (e) {
+      if (!mounted) return;
+
+      final data = e.response?.data;
+      final message = data is Map
+          ? _text(data['message'], 'Unable to delete story')
+          : 'Unable to delete story';
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
+  Future<void> _showStoryViews(String storyId) async {
+    try {
+      final data = await _storyService.getStoryViews(storyId);
+
+      if (!mounted) return;
+
+      final viewers = data['viewers'] is List ? data['viewers'] as List : [];
+
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        ),
+        builder: (context) {
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Viewed by ${data['totalViews'] ?? viewers.length}',
+                    style: const TextStyle(
+                      color: ink,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  if (viewers.isEmpty)
+                    const Text('No views yet.')
+                  else
+                    ...viewers.map((item) {
+                      if (item is! Map) return const SizedBox.shrink();
+
+                      final viewer = Map<String, dynamic>.from(item);
+                      final photo = _text(viewer['photoUrl']);
+
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage: photo.isNotEmpty
+                              ? NetworkImage(photo)
+                              : null,
+                          child: photo.isEmpty
+                              ? const Icon(Icons.person)
+                              : null,
+                        ),
+                        title: Text(_text(viewer['fullName'], 'ILYF Member')),
+                        subtitle: Text(_text(viewer['city'])),
+                      );
+                    }),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Unable to load viewers: $e')));
+    }
+  }
+
+  Future<int> _loadStoryViewCount(String storyId) async {
+    try {
+      final data = await _storyService.getStoryViews(storyId);
+
+      if (data is Map) {
+        final count = data['totalViews'];
+
+        if (count is num) return count.toInt();
+
+        if (count != null) {
+          return int.tryParse(count.toString()) ?? 0;
+        }
+
+        final viewers = data['viewers'];
+        if (viewers is List) return viewers.length;
+      }
+
+      return 0;
+    } catch (e) {
+      debugPrint('Unable to load story view count: $e');
+      return 0;
+    }
   }
 
   @override
@@ -106,8 +481,10 @@ class _OverviewPageState extends State<OverviewPage> {
 
       setState(() {
         _overview = data.cast<String, dynamic>();
+
+        _readStoriesFromOverview(_overview);
+
         _loading = false;
-        _error = null;
       });
     } on DioException catch (e) {
       if (!mounted) return;
@@ -159,6 +536,7 @@ class _OverviewPageState extends State<OverviewPage> {
                   padding: const EdgeInsets.only(bottom: 28),
                   children: [
                     _greetingSection(),
+                    _storiesSection(),
                     _statisticsSection(),
                     _activitySection(),
                     _enquiriesSection(),
@@ -320,6 +698,140 @@ class _OverviewPageState extends State<OverviewPage> {
                         color: Colors.white,
                         size: 43,
                       ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // STORIES SECTION
+  Widget _storiesSection() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 8, 18, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeading('Stories', 'Share an update with your community'),
+          const SizedBox(height: 14),
+          if (_storiesLoading)
+            const SizedBox(
+              height: 92,
+              child: Center(child: CircularProgressIndicator(color: purple)),
+            )
+          else
+            SizedBox(
+              height: 112,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  _storyAvatar(
+                    name: 'Your story',
+                    imageUrl: _text(_profile['photoUrl']),
+                    hasStory: _myStories.isNotEmpty,
+                    isViewed: false,
+                    isAdd: _myStories.isEmpty,
+                    onTap: _myStories.isEmpty
+                        ? _showCreateStoryOptions
+                        : _openMyStories,
+                  ),
+                  const SizedBox(width: 14),
+                  ..._storyMembers.map((group) {
+                    final member = group.member;
+                    final allViewed =
+                        group.stories.isNotEmpty &&
+                        group.stories.every((story) => story.isViewed);
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 14),
+                      child: _storyAvatar(
+                        name: _text(member['fullName'], 'Member'),
+                        imageUrl: _text(member['photoUrl']),
+                        hasStory: group.stories.isNotEmpty,
+                        isViewed: allViewed,
+                        onTap: () => _openMemberStories(group),
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _storyAvatar({
+    required String name,
+    required String imageUrl,
+    required bool hasStory,
+    required bool isViewed,
+    required VoidCallback onTap,
+    bool isAdd = false,
+  }) {
+    return SizedBox(
+      width: 70,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: hasStory
+                      ? (isViewed ? const Color(0xFFBDB8C8) : purple)
+                      : border,
+                  width: 2.2,
+                ),
+              ),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  CircleAvatar(
+                    radius: 27,
+                    backgroundColor: const Color(0xFFECE4FF),
+                    backgroundImage: imageUrl.isNotEmpty
+                        ? NetworkImage(imageUrl)
+                        : null,
+                    child: imageUrl.isEmpty
+                        ? const Icon(Icons.person, color: purpleDark)
+                        : null,
+                  ),
+                  if (isAdd)
+                    Positioned(
+                      right: -1,
+                      bottom: -1,
+                      child: Container(
+                        width: 21,
+                        height: 21,
+                        decoration: BoxDecoration(
+                          color: purple,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(
+                          Icons.add,
+                          size: 14,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 7),
+            Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: ink,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -615,7 +1127,7 @@ class _OverviewPageState extends State<OverviewPage> {
 
     Color statusColor;
     Color statusBackground;
-    if (status == 'NEW' || status == 'NEW') {
+    if (status == 'NEW') {
       statusColor = const Color(0xFF4C73D1);
       statusBackground = const Color(0xFFEAF0FF);
     } else if (status == 'PENDING' || status == 'IN_PROGRESS') {
@@ -933,7 +1445,356 @@ class _OverviewPageState extends State<OverviewPage> {
   }
 }
 
-// CUSTOM GRAPH PAINTER - NO EXTRA PACKAGE REQUIRED
+class _StoryListDialog extends StatefulWidget {
+  final String memberName;
+  final List<StoryModel> stories;
+  final Future<void> Function(String storyId)? onViewStory;
+  final Future<void> Function(String storyId)? onShowStoryViews;
+  final Future<int> Function(String storyId)? onLoadViewCount;
+
+  const _StoryListDialog({
+    required this.memberName,
+    required this.stories,
+    this.onViewStory,
+    this.onShowStoryViews,
+    this.onLoadViewCount,
+  });
+
+  @override
+  State<_StoryListDialog> createState() => _StoryListDialogState();
+}
+
+class _StoryListDialogState extends State<_StoryListDialog> {
+  int index = 0;
+
+  VideoPlayerController? _videoController;
+
+  final Set<String> _recordedStoryIds = {};
+
+  int _storyViewCount = 0;
+
+  StoryModel get current => widget.stories[index];
+
+  Future<void> _loadCurrentViewCount() async {
+    final callback = widget.onLoadViewCount;
+
+    if (callback == null) return;
+
+    final storyId = current.id;
+
+    try {
+      final count = await callback(storyId);
+
+      if (!mounted || current.id != storyId) return;
+
+      setState(() {
+        _storyViewCount = count;
+      });
+    } catch (e) {
+      debugPrint('Unable to load story views: $e');
+    }
+  }
+
+@override
+void initState() {
+  super.initState();
+
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (!mounted) return;
+
+    _recordCurrentStoryView();
+    _loadCurrentViewCount();
+  });
+
+  _loadVideo();
+}
+
+  Future<void> _recordCurrentStoryView() async {
+    final callback = widget.onViewStory;
+    if (callback == null) return;
+
+    final storyId = current.id;
+    if (!_recordedStoryIds.add(storyId)) return;
+
+    try {
+      await callback(storyId);
+    } catch (_) {
+      // Story viewing should continue even if view tracking fails.
+    }
+  }
+
+  Future<void> _loadVideo() async {
+    final oldController = _videoController;
+    _videoController = null;
+    await oldController?.dispose();
+
+    if (!mounted ||
+        current.mediaType != 'VIDEO' ||
+        current.mediaUrl == null ||
+        current.mediaUrl!.isEmpty) {
+      if (mounted) setState(() {});
+      return;
+    }
+
+    final controller = VideoPlayerController.networkUrl(
+      Uri.parse(current.mediaUrl!),
+    );
+    _videoController = controller;
+
+    try {
+      await controller.initialize();
+      await controller.setLooping(true);
+      await controller.play();
+    } catch (_) {
+      // An unavailable-media message is shown in the viewer.
+    }
+
+    if (mounted) setState(() {});
+  }
+
+Future<void> _next() async {
+  if (index >= widget.stories.length - 1) {
+    Navigator.pop(context);
+    return;
+  }
+
+  setState(() {
+    index++;
+    _storyViewCount = 0;
+  });
+
+  _loadCurrentViewCount();
+  await _recordCurrentStoryView();
+  await _loadVideo();
+}
+
+Future<void> _previous() async {
+  if (index == 0) return;
+
+  setState(() {
+    index--;
+    _storyViewCount = 0;
+  });
+
+  _loadCurrentViewCount();
+  await _recordCurrentStoryView();
+  await _loadVideo();
+}
+
+@override
+void dispose() {
+  _videoController?.dispose();
+  super.dispose();
+}
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.stories.isEmpty) return const SizedBox.shrink();
+
+    final story = current;
+    final videoReady = _videoController?.value.isInitialized == true;
+    final videoFailed = _videoController?.value.hasError == true;
+
+    return Dialog(
+      backgroundColor: Colors.black,
+      insetPadding: const EdgeInsets.all(12),
+      child: SizedBox(
+        width: 420,
+        height: 650,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (story.mediaType == 'TEXT')
+              Container(
+                padding: const EdgeInsets.all(30),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF26105C), Color(0xFF8060D5)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    story.text ?? story.caption ?? '',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 25,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              )
+            else if (story.mediaType == 'IMAGE' &&
+                story.mediaUrl != null &&
+                story.mediaUrl!.isNotEmpty)
+              Image.network(
+                story.mediaUrl!,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Center(
+                  child: Icon(
+                    Icons.broken_image,
+                    color: Colors.white,
+                    size: 50,
+                  ),
+                ),
+              )
+            else if (story.mediaType == 'VIDEO')
+              Center(
+                child: videoReady
+                    ? AspectRatio(
+                        aspectRatio: _videoController!.value.aspectRatio,
+                        child: VideoPlayer(_videoController!),
+                      )
+                    : videoFailed
+                    ? const Text(
+                        'Unable to play this video.',
+                        style: TextStyle(color: Colors.white),
+                      )
+                    : const CircularProgressIndicator(color: Colors.white),
+              )
+            else
+              const Center(
+                child: Text(
+                  'Story media is unavailable.',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            Positioned(
+              top: 14,
+              left: 14,
+              right: 14,
+              child: Column(
+                children: [
+                  TweenAnimationBuilder<double>(
+                    key: ValueKey(current.id),
+                    tween: Tween<double>(begin: 0, end: 1),
+                    duration: const Duration(seconds: 15),
+                    onEnd: () {
+                      if (mounted) {
+                        _next();
+                      }
+                    },
+                    builder: (context, value, child) {
+                      return ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: LinearProgressIndicator(
+                          value: value,
+                          minHeight: 4,
+                          backgroundColor: Colors.white30,
+                          color: Colors.white,
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          widget.memberName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // Story caption
+            // Story caption
+            if (story.caption != null && story.caption!.isNotEmpty)
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 65,
+                child: Text(
+                  story.caption!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    shadows: [Shadow(blurRadius: 8, color: Colors.black)],
+                  ),
+                ),
+              ),
+
+            // Story views
+            if (widget.onShowStoryViews != null)
+              Positioned(
+                left: 16,
+                bottom: 16,
+                child: InkWell(
+                  onTap: () {
+                    widget.onShowStoryViews?.call(current.id);
+                  },
+                  borderRadius: BorderRadius.circular(25),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 9,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.visibility_outlined,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '$_storyViewCount views',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+            // Previous / next story navigation
+            Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTap: _previous,
+                  ),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTap: _next,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Activity chart painter
 class _ActivityChartPainter extends CustomPainter {
   final List<double> values;
   final List<String> labels;
