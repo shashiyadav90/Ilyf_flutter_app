@@ -350,15 +350,21 @@ class _OverviewPageState extends State<OverviewPage> {
 
       if (!mounted) return;
 
-      final viewers = data['viewers'] is List ? data['viewers'] as List : [];
+      final viewers = data['viewers'] is List
+          ? (data['viewers'] as List)
+                .whereType<Map>()
+                .map((item) => Map<String, dynamic>.from(item))
+                .toList()
+          : <Map<String, dynamic>>[];
 
-      showModalBottomSheet(
+      showModalBottomSheet<void>(
         context: context,
         backgroundColor: Colors.white,
+        isScrollControlled: true,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
         ),
-        builder: (context) {
+        builder: (sheetContext) {
           return SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(20),
@@ -375,26 +381,66 @@ class _OverviewPageState extends State<OverviewPage> {
                     ),
                   ),
                   const SizedBox(height: 15),
-                  if (viewers.isEmpty)
-                    const Text('No views yet.')
-                  else
-                    ...viewers.map((item) {
-                      if (item is! Map) return const SizedBox.shrink();
 
-                      final viewer = Map<String, dynamic>.from(item);
-                      final photo = _text(viewer['photoUrl']);
+                  if (viewers.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(20),
+                      child: Text('No views yet.'),
+                    )
+                  else
+                    ...viewers.map((viewer) {
+                      final name = _text(
+                        viewer['fullName'] ?? viewer['name'],
+                        'ILYF Member',
+                      );
+
+                      final photo = _text(
+                        viewer['photoUrl'] ?? viewer['photo'],
+                      );
 
                       return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        onTap: () {
+                          Navigator.pop(sheetContext);
+
+                          Future.microtask(() {
+                            if (mounted) {
+                              _showViewerProfile(viewer);
+                            }
+                          });
+                        },
                         leading: CircleAvatar(
+                          radius: 24,
+                          backgroundColor: const Color(0xFFECE4FF),
                           backgroundImage: photo.isNotEmpty
                               ? NetworkImage(photo)
                               : null,
                           child: photo.isEmpty
-                              ? const Icon(Icons.person)
+                              ? Text(
+                                  name.isNotEmpty ? name[0].toUpperCase() : 'I',
+                                  style: const TextStyle(
+                                    color: purple,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                )
                               : null,
                         ),
-                        title: Text(_text(viewer['fullName'], 'ILYF Member')),
-                        subtitle: Text(_text(viewer['city'])),
+                        title: Text(
+                          name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: ink,
+                          ),
+                        ),
+                        subtitle: Text(
+                          _text(viewer['city'], 'ILYF Member'),
+                          style: const TextStyle(color: muted),
+                        ),
+                        trailing: const Icon(
+                          Icons.arrow_forward_ios,
+                          size: 15,
+                          color: muted,
+                        ),
                       );
                     }),
                 ],
@@ -410,6 +456,149 @@ class _OverviewPageState extends State<OverviewPage> {
         context,
       ).showSnackBar(SnackBar(content: Text('Unable to load viewers: $e')));
     }
+  }
+
+  void _showViewerProfile(Map<String, dynamic> viewer) {
+    final name = _text(viewer['fullName'] ?? viewer['name'], 'ILYF Member');
+
+    final photo = _text(viewer['photoUrl'] ?? viewer['photo']);
+
+    final details = <Map<String, String>>[
+      {'label': 'City', 'value': _text(viewer['city'])},
+      {'label': 'Chapter', 'value': _text(viewer['chapter'])},
+      {
+        'label': 'Membership',
+        'value': _text(viewer['membershipType'] ?? viewer['membership']),
+      },
+      {
+        'label': 'Member ID',
+        'value': _text(viewer['memberId'] ?? viewer['membershipNo']),
+      },
+      {'label': 'Email', 'value': _text(viewer['email'])},
+      {'label': 'Phone', 'value': _text(viewer['phone'])},
+    ];
+
+    final availableDetails = details
+        .where((item) => item['value']!.isNotEmpty)
+        .toList();
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (profileContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  CircleAvatar(
+                    radius: 48,
+                    backgroundColor: const Color(0xFFECE4FF),
+                    backgroundImage: photo.isNotEmpty
+                        ? NetworkImage(photo)
+                        : null,
+                    child: photo.isEmpty
+                        ? const Icon(Icons.person, size: 48, color: purple)
+                        : null,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  Text(
+                    name,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.w800,
+                      color: ink,
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  const Text(
+                    'ILYF Community Member',
+                    style: TextStyle(fontSize: 13, color: muted),
+                  ),
+
+                  const SizedBox(height: 20),
+                  const Divider(),
+
+                  if (availableDetails.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text(
+                        'Additional profile details are not available.',
+                        style: TextStyle(color: muted),
+                      ),
+                    )
+                  else
+                    ...availableDetails.map((item) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item['label']!,
+                                style: const TextStyle(
+                                  color: muted,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Flexible(
+                              child: Text(
+                                item['value']!,
+                                textAlign: TextAlign.end,
+                                style: const TextStyle(
+                                  color: ink,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+
+                  const SizedBox(height: 20),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.pop(profileContext);
+                      },
+                      child: const Text('Close'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<int> _loadStoryViewCount(String storyId) async {
@@ -1495,19 +1684,19 @@ class _StoryListDialogState extends State<_StoryListDialog> {
     }
   }
 
-@override
-void initState() {
-  super.initState();
+  @override
+  void initState() {
+    super.initState();
 
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
 
-    _recordCurrentStoryView();
-    _loadCurrentViewCount();
-  });
+      _recordCurrentStoryView();
+      _loadCurrentViewCount();
+    });
 
-  _loadVideo();
-}
+    _loadVideo();
+  }
 
   Future<void> _recordCurrentStoryView() async {
     final callback = widget.onViewStory;
@@ -1552,40 +1741,40 @@ void initState() {
     if (mounted) setState(() {});
   }
 
-Future<void> _next() async {
-  if (index >= widget.stories.length - 1) {
-    Navigator.pop(context);
-    return;
+  Future<void> _next() async {
+    if (index >= widget.stories.length - 1) {
+      Navigator.pop(context);
+      return;
+    }
+
+    setState(() {
+      index++;
+      _storyViewCount = 0;
+    });
+
+    _loadCurrentViewCount();
+    await _recordCurrentStoryView();
+    await _loadVideo();
   }
 
-  setState(() {
-    index++;
-    _storyViewCount = 0;
-  });
+  Future<void> _previous() async {
+    if (index == 0) return;
 
-  _loadCurrentViewCount();
-  await _recordCurrentStoryView();
-  await _loadVideo();
-}
+    setState(() {
+      index--;
+      _storyViewCount = 0;
+    });
 
-Future<void> _previous() async {
-  if (index == 0) return;
+    _loadCurrentViewCount();
+    await _recordCurrentStoryView();
+    await _loadVideo();
+  }
 
-  setState(() {
-    index--;
-    _storyViewCount = 0;
-  });
-
-  _loadCurrentViewCount();
-  await _recordCurrentStoryView();
-  await _loadVideo();
-}
-
-@override
-void dispose() {
-  _videoController?.dispose();
-  super.dispose();
-}
+  @override
+  void dispose() {
+    _videoController?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1787,6 +1976,48 @@ void dispose() {
                 ),
               ],
             ),
+
+            // 5. Story views - MUST BE AFTER NAVIGATION
+            if (widget.onShowStoryViews != null)
+              Positioned(
+                left: 16,
+                bottom: 16,
+                child: InkWell(
+                  onTap: () {
+                    widget.onShowStoryViews?.call(current.id);
+                  },
+                  borderRadius: BorderRadius.circular(25),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 9,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.visibility_outlined,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '$_storyViewCount views',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
