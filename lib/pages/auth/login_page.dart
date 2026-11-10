@@ -218,22 +218,73 @@ class _LoginPageState extends State<LoginPage> {
       ),
       body: SafeArea(
         child: LayoutBuilder(
-          builder: (context, constraints) => SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
-              child: IntrinsicHeight(
-                child: Column(
-                  children: [
-                    _hero(lead),
-                    Transform.translate(
-                      offset: const Offset(0, -34),
-                      child: _formCard(),
+          builder: (context, constraints) {
+            final isWeb = constraints.maxWidth >= 900;
+
+            // WEB: Login information on the left, form on the right.
+            if (isWeb) {
+              return LayoutBuilder(
+                builder: (context, webConstraints) {
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.all(32),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: webConstraints.maxHeight - 64,
+                      ),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 1250),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                flex: 5,
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(30),
+                                  child: _hero(lead),
+                                ),
+                              ),
+                              const SizedBox(width: 55),
+                              Expanded(
+                                flex: 5,
+                                child: Center(
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 460,
+                                    ),
+                                    child: _formCard(),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                  ],
+                  );
+                },
+              );
+            }
+
+            // MOBILE/TABLET: Keep the existing layout.
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Column(
+                    children: [
+                      _hero(lead),
+                      Transform.translate(
+                        offset: const Offset(0, -34),
+                        child: _formCard(),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );

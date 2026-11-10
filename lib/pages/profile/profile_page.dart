@@ -1187,40 +1187,110 @@ class _ProfilePageState extends State<ProfilePage> {
             : RefreshIndicator(
                 color: purple,
                 onRefresh: _loadProfile,
-                child: ListView(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  children: [
-                    _hero(),
-                    Transform.translate(
-                      offset: const Offset(0, -28),
-                      child: _actionPanel(),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          children: [
-                            if (_notice != null) _noticeBox(_notice!, false),
-                            if (_error != null)
-                              _noticeBox(
-                                'Something went wrong. Please try again later.',
-                                true,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isDesktop = constraints.maxWidth >= 1000;
+                    final isTablet = constraints.maxWidth >= 650;
+
+                    final contentWidth = isDesktop ? 1250.0 : double.infinity;
+
+                    final horizontalPadding = isDesktop ? 32.0 : 16.0;
+
+                    final cardWidth = isDesktop
+                        ? (contentWidth - (horizontalPadding * 2) - 16) / 2
+                        : isTablet
+                        ? (constraints.maxWidth - 48) / 2
+                        : constraints.maxWidth - 32;
+
+                    return ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.only(bottom: 30),
+                      children: [
+                        _hero(),
+
+                        Transform.translate(
+                          offset: const Offset(0, -28),
+                          child: Center(
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: contentWidth,
                               ),
-                            _aboutCard(),
-                            _contactCard(),
-                            _socialCard(),
-                            _servicesCard(),
-                            _memberIdCard(),
-                            _offersCard(),
-                            _mediaCard(),
-                            _saveActions(),
-                            _logoutButton(),
-                          ],
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: horizontalPadding,
+                                ),
+                                child: _actionPanel(),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
+
+                        Center(
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(maxWidth: contentWidth),
+                            child: Padding(
+                              padding: EdgeInsets.fromLTRB(
+                                horizontalPadding,
+                                0,
+                                horizontalPadding,
+                                0,
+                              ),
+                              child: Form(
+                                key: _formKey,
+                                child: Column(
+                                  children: [
+                                    if (_notice != null)
+                                      _noticeBox(_notice!, false),
+
+                                    if (_error != null)
+                                      _noticeBox(
+                                        'Something went wrong. Please try again later.',
+                                        true,
+                                      ),
+
+                                    Wrap(
+                                      spacing: 16,
+                                      runSpacing: 16,
+                                      children: [
+                                        SizedBox(
+                                          width: cardWidth,
+                                          child: _aboutCard(),
+                                        ),
+                                        SizedBox(
+                                          width: cardWidth,
+                                          child: _contactCard(),
+                                        ),
+                                        SizedBox(
+                                          width: cardWidth,
+                                          child: _socialCard(),
+                                        ),
+                                        SizedBox(
+                                          width: cardWidth,
+                                          child: _servicesCard(),
+                                        ),
+                                        SizedBox(
+                                          width: cardWidth,
+                                          child: _memberIdCard(),
+                                        ),
+                                        SizedBox(
+                                          width: cardWidth,
+                                          child: _offersCard(),
+                                        ),
+                                      ],
+                                    ),
+
+                                    _mediaCard(),
+                                    _saveActions(),
+                                    _logoutButton(),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
       ),
@@ -1249,113 +1319,123 @@ class _ProfilePageState extends State<ProfilePage> {
     ),
   );
 
-  Widget _hero() => Container(
-    padding: const EdgeInsets.fromLTRB(20, 22, 20, 48),
-    decoration: const BoxDecoration(
-      borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [Color(0xFF170A3D), Color(0xFF2C1573), Color(0xFF231063)],
-      ),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Icon(Icons.verified_user_outlined, color: Color(0xFFE9C46A)),
-            const SizedBox(width: 8),
-            const Expanded(
-              child: Text(
-                'PROFILE SUMMARY',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ),
-            if (_membershipType.isNotEmpty)
-              _pill('$_membershipType member', gold: true),
-          ],
+  Widget _hero() => Center(
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 1314),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 22, 20, 48),
+        decoration: const BoxDecoration(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF170A3D), Color(0xFF2C1573), Color(0xFF231063)],
+          ),
         ),
-        const SizedBox(height: 24),
-        Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 90,
-              height: 90,
-              decoration: BoxDecoration(
-                color: purple,
-                borderRadius: BorderRadius.circular(25),
-                border: Border.all(color: Colors.white, width: 3),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: _photo.isEmpty
-                  ? Center(
-                      child: Text(
-                        _initials,
+            Row(
+              children: [
+                const Icon(
+                  Icons.verified_user_outlined,
+                  color: Color(0xFFE9C46A),
+                ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'PROFILE SUMMARY',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+                if (_membershipType.isNotEmpty)
+                  _pill('$_membershipType member', gold: true),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Container(
+                  width: 90,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    color: purple,
+                    borderRadius: BorderRadius.circular(25),
+                    border: Border.all(color: Colors.white, width: 3),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: _photo.isEmpty
+                      ? Center(
+                          child: Text(
+                            _initials,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 30,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        )
+                      : Image.network(
+                          _mediaUrl(_photo),
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Center(
+                            child: Text(
+                              _initials,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 30,
+                              ),
+                            ),
+                          ),
+                        ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _nameValue,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 30,
+                          fontSize: 25,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
-                    )
-                  : Image.network(
-                      _mediaUrl(_photo),
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Center(
-                        child: Text(
-                          _initials,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 30,
-                          ),
+                      if (_businessName.isNotEmpty)
+                        Text(
+                          _businessName,
+                          style: const TextStyle(color: Colors.white70),
                         ),
-                      ),
-                    ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _nameValue,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 25,
-                      fontWeight: FontWeight.w800,
-                    ),
+                      if (_category.text.isNotEmpty)
+                        Text(
+                          _category.text,
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                    ],
                   ),
-                  if (_businessName.isNotEmpty)
-                    Text(
-                      _businessName,
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                  if (_category.text.isNotEmpty)
-                    Text(
-                      _category.text,
-                      style: const TextStyle(color: Colors.white70),
-                    ),
-                ],
-              ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (_membershipNo.isNotEmpty) _pill('ILYF ID: $_membershipNo'),
+                if (_chapter.isNotEmpty) _pill(_chapter),
+                if (_membershipType.isNotEmpty) _pill('★ $_membershipType'),
+              ],
             ),
           ],
         ),
-        const SizedBox(height: 18),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            if (_membershipNo.isNotEmpty) _pill('ILYF ID: $_membershipNo'),
-            if (_chapter.isNotEmpty) _pill(_chapter),
-            if (_membershipType.isNotEmpty) _pill('★ $_membershipType'),
-          ],
-        ),
-      ],
+      ),
     ),
   );
 
@@ -1444,7 +1524,7 @@ class _ProfilePageState extends State<ProfilePage> {
       Container(
         width: double.infinity,
         margin: const EdgeInsets.only(bottom: 14),
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
@@ -1469,7 +1549,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     title,
                     style: const TextStyle(
                       color: ink,
-                      fontSize: 21,
+                      fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

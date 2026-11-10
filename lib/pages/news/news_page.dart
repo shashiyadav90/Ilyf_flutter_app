@@ -467,12 +467,33 @@ class _NewsPageState extends State<NewsPage> {
     return RefreshIndicator(
       color: _violet,
       onRefresh: _loadNews,
-      child: ListView.separated(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(14, 4, 14, 24),
-        itemCount: _news.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 16),
-        itemBuilder: (_, i) => _newsCard(_news[i]),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final columns = constraints.maxWidth >= 1100
+              ? 3
+              : constraints.maxWidth >= 650
+              ? 2
+              : 1;
+
+          return GridView.builder(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(14, 4, 14, 24),
+            itemCount: _news.length,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: columns,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              mainAxisExtent: columns == 3
+                  ? 500
+                  : columns == 2
+                  ? 480
+                  : 520,
+            ),
+            itemBuilder: (context, index) {
+              return _newsCard(_news[index]);
+            },
+          );
+        },
       ),
     );
   }
@@ -527,12 +548,14 @@ class _NewsPageState extends State<NewsPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        author,
-                        maxLines: 1,
+                        title,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          color: _ink,
+                          fontSize: 17,
                           fontWeight: FontWeight.w800,
+                          color: _ink,
+                          height: 1.3,
                         ),
                       ),
                       Text(
@@ -572,7 +595,7 @@ class _NewsPageState extends State<NewsPage> {
             Stack(
               children: [
                 AspectRatio(
-                  aspectRatio: 1,
+                  aspectRatio: 16 / 9,
                   child: Image.network(
                     _mediaUrl(image),
                     width: double.infinity,
@@ -586,7 +609,7 @@ class _NewsPageState extends State<NewsPage> {
             )
           else
             AspectRatio(
-              aspectRatio: 1,
+              aspectRatio: 16 / 9,
               child: _poster(title, author, category),
             ),
           Padding(
@@ -768,50 +791,69 @@ class _NewsPageState extends State<NewsPage> {
     return RefreshIndicator(
       color: _violet,
       onRefresh: _loadEvents,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(14, 4, 14, 25),
-        children: [
-          _sectionTitle('Upcoming'),
-          if (upcoming.isEmpty)
-            const _NoEvents('No upcoming events right now.')
-          else
-            ...upcoming.asMap().entries.map(
-              (e) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _EventTile(
-                  event: e.value,
-                  imageUrl: _eventImage(e.value),
-                  variant: e.key == 0 ? 'next' : 'row',
-                  start: _eventStart(e.value),
-                  end: _eventEnd(e.value),
-                  hasTime: _hasTime(e.value),
-                  onOpen: _openUrl,
-                  onCalendar: () => _calendar(e.value),
-                ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final columns = constraints.maxWidth >= 1100
+              ? 3
+              : constraints.maxWidth >= 650
+              ? 2
+              : 1;
+
+          Widget eventGrid(List<Map<String, dynamic>> events, String section) {
+            if (events.isEmpty) {
+              return _NoEvents(
+                section == 'Upcoming'
+                    ? 'No upcoming events right now.'
+                    : 'No past events yet.',
+              );
+            }
+
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              itemCount: events.length,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                mainAxisExtent: columns == 3
+                    ? 500
+                    : columns == 2
+                    ? 460
+                    : 440,
               ),
-            ),
-          const SizedBox(height: 12),
-          _sectionTitle('Past events'),
-          if (past.isEmpty)
-            const _NoEvents('No past events yet.')
-          else
-            ...past.asMap().entries.map(
-              (e) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _EventTile(
-                  event: e.value,
-                  imageUrl: _eventImage(e.value),
-                  variant: e.key == 0 ? 'last' : 'row',
-                  start: _eventStart(e.value),
-                  end: _eventEnd(e.value),
-                  hasTime: _hasTime(e.value),
+              itemBuilder: (context, index) {
+                final event = events[index];
+
+                return _EventTile(
+                  event: event,
+                  imageUrl: _eventImage(event),
+                  variant: section == 'Upcoming'
+                      ? (index == 0 ? 'next' : 'row')
+                      : (index == 0 ? 'last' : 'row'),
+                  start: _eventStart(event),
+                  end: _eventEnd(event),
+                  hasTime: _hasTime(event),
                   onOpen: _openUrl,
-                  onCalendar: () => _calendar(e.value),
-                ),
-              ),
-            ),
-        ],
+                  onCalendar: () => _calendar(event),
+                );
+              },
+            );
+          }
+
+          return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(14, 4, 14, 25),
+            children: [
+              _sectionTitle('Upcoming'),
+              eventGrid(upcoming, 'Upcoming'),
+              const SizedBox(height: 20),
+              _sectionTitle('Past events'),
+              eventGrid(past, 'Past events'),
+            ],
+          );
+        },
       ),
     );
   }
@@ -951,7 +993,7 @@ class _EventTile extends StatefulWidget {
 }
 
 class _EventTileState extends State<_EventTile> {
-  late bool _expanded = widget.variant != 'row';
+  bool _expanded = false;
 
   String get _title =>
       (widget.event['title'] ?? widget.event['name'] ?? 'Event').toString();
@@ -1072,295 +1114,299 @@ class _EventTileState extends State<_EventTile> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          InkWell(
-            onTap: widget.variant == 'row'
-                ? () => setState(() => _expanded = !_expanded)
-                : null,
-            borderRadius: BorderRadius.circular(24),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(15, 16, 15, 7),
-              child: Row(
-                children: [
-                  if (start != null)
-                    Container(
-                      width: 59,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      decoration: BoxDecoration(
-                        color: dark ? Colors.white12 : _mist,
-                        borderRadius: BorderRadius.circular(17),
-                        border: Border.all(
-                          color: dark ? Colors.white24 : _line,
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: () => setState(() => _expanded = !_expanded),
+              borderRadius: BorderRadius.circular(24),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(15, 16, 15, 7),
+                child: Row(
+                  children: [
+                    if (start != null)
+                      Container(
+                        width: 59,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          color: dark ? Colors.white12 : _mist,
+                          borderRadius: BorderRadius.circular(17),
+                          border: Border.all(
+                            color: dark ? Colors.white24 : _line,
+                          ),
                         ),
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            '${start.day}',
-                            style: TextStyle(
-                              fontFamily: 'Georgia',
-                              fontSize: 29,
-                              color: dark ? _gold : _ink,
-                            ),
-                          ),
-                          Text(
-                            start.month.toString().padLeft(2, '0'),
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              color: dark ? _gold : _violet,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  if (start != null) const SizedBox(width: 13),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (next || last)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 5),
-                            child: Text(
-                              next ? 'NEXT EVENT' : 'LAST EVENT',
+                        child: Column(
+                          children: [
+                            Text(
+                              '${start.day}',
                               style: TextStyle(
-                                color: dark ? _gold : _violet,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
+                                fontFamily: 'Georgia',
+                                fontSize: 29,
+                                color: dark ? _gold : _ink,
                               ),
                             ),
-                          ),
-                        Text(
-                          _title,
-                          style: TextStyle(
-                            fontFamily: 'Georgia',
-                            fontSize: widget.variant == 'row' ? 21 : 25,
-                            height: 1.1,
-                            color: fg,
-                          ),
-                        ),
-                        if (start != null) ...[
-                          const SizedBox(height: 5),
-                          Text(
-                            _when(start),
-                            style: TextStyle(
-                              color: dark ? _gold : _violet,
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  if (widget.variant == 'row')
-                    Icon(
-                      _expanded
-                          ? Icons.keyboard_arrow_down
-                          : Icons.chevron_right,
-                      color: _ink3,
-                    ),
-                ],
-              ),
-            ),
-          ),
-          if (start != null || _venue.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(15, 8, 15, 5),
-              child: Wrap(
-                spacing: 7,
-                runSpacing: 7,
-                children: [
-                  if (start != null)
-                    _chip(Icons.calendar_today_outlined, _date(start), dark),
-                  if (start != null && widget.hasTime)
-                    _chip(
-                      Icons.access_time,
-                      '${_clock(start)}${widget.end == null ? '' : ' to ${_clock(widget.end!)}'}',
-                      dark,
-                    ),
-                  if (_venue.isNotEmpty)
-                    _chip(Icons.location_on_outlined, _venue, dark),
-                ],
-              ),
-            ),
-          if (widget.imageUrl.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(15, 12, 15, 5),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: Image.network(
-                    widget.imageUrl,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, progress) {
-                      if (progress == null) return child;
-
-                      return Container(
-                        color: _mist,
-                        alignment: Alignment.center,
-                        child: const CircularProgressIndicator(color: _violet),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) {
-                      debugPrint('EVENT IMAGE ERROR: $error');
-                      debugPrint('EVENT IMAGE URL: ${widget.imageUrl}');
-
-                      return Container(
-                        color: _mist,
-                        alignment: Alignment.center,
-                        child: const Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.image_not_supported_outlined,
-                              color: _violet,
-                              size: 35,
-                            ),
-                            SizedBox(height: 6),
                             Text(
-                              'Event image unavailable',
-                              style: TextStyle(color: _muted, fontSize: 11),
+                              start.month.toString().padLeft(2, '0'),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: dark ? _gold : _violet,
+                              ),
                             ),
                           ],
                         ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ),
-          if (_expanded) ...[
-            if (!_past) ...[
-              if (_about.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                  child: Text(
-                    _about,
-                    style: TextStyle(
-                      color: dark ? Colors.white70 : _muted,
-                      height: 1.6,
-                    ),
-                  ),
-                ),
-              if (_agenda().isNotEmpty) ...[
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 7),
-                  child: Text(
-                    'What will happen',
-                    style: TextStyle(
-                      color: dark ? _gold : _deepPurple,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-                ..._agenda().map(
-                  (line) => Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 4, 16, 7),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.circle, size: 7, color: _gold),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            line,
+                      ),
+                    if (start != null) const SizedBox(width: 13),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (next || last)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 5),
+                              child: Text(
+                                next ? 'NEXT EVENT' : 'LAST EVENT',
+                                style: TextStyle(
+                                  color: dark ? _gold : _violet,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          Text(
+                            _title,
                             style: TextStyle(
-                              color: dark ? Colors.white : _ink,
-                              height: 1.4,
+                              fontFamily: 'Georgia',
+                              fontSize: widget.variant == 'row' ? 21 : 25,
+                              height: 1.1,
+                              color: fg,
                             ),
                           ),
-                        ),
-                      ],
+                          if (start != null) ...[
+                            const SizedBox(height: 5),
+                            Text(
+                              _when(start),
+                              style: TextStyle(
+                                color: dark ? _gold : _violet,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                  ),
-                ),
-              ],
-            ] else ...[
-              if (recap.isNotEmpty || _about.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 13, 16, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'What happened',
-                        style: TextStyle(
-                          color: _deepPurple,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(height: 7),
-                      Text(
-                        recap.isNotEmpty ? recap : _about,
-                        style: const TextStyle(color: _muted, height: 1.6),
-                      ),
-                    ],
-                  ),
-                ),
-              if (attendees > 0 || highlights.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(15, 12, 15, 4),
-                  child: Wrap(
-                    spacing: 7,
-                    runSpacing: 7,
-                    children: [
-                      if (attendees > 0)
-                        _highlight('$attendees attended', true),
-                      ...highlights.map((e) => _highlight(e, false)),
-                    ],
-                  ),
-                ),
-            ],
-            if ((!_past && start != null) || _link.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(15, 13, 15, 15),
-                child: Row(
-                  children: [
-                    if (!_past && start != null)
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: widget.onCalendar,
-                          icon: const Icon(Icons.calendar_month, size: 17),
-                          label: const Text('Add to calendar'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: dark ? Colors.white : _deepPurple,
-                            side: BorderSide(
-                              color: dark ? Colors.white38 : _line,
-                            ),
-                            minimumSize: const Size(0, 44),
-                          ),
-                        ),
-                      ),
-                    if (!_past && start != null && _link.isNotEmpty)
-                      const SizedBox(width: 8),
-                    if (_link.isNotEmpty)
-                      Expanded(
-                        child: FilledButton.icon(
-                          onPressed: () => widget.onOpen(_link),
-                          icon: const Icon(Icons.open_in_new, size: 16),
-                          label: Text(_past ? 'See more' : 'Register'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: dark ? _gold : _violet,
-                            foregroundColor: dark
-                                ? const Color(0xFF2A1A00)
-                                : Colors.white,
-                            minimumSize: const Size(0, 44),
-                          ),
-                        ),
+                    if (widget.variant == 'row')
+                      Icon(
+                        _expanded
+                            ? Icons.keyboard_arrow_down
+                            : Icons.chevron_right,
+                        color: _ink3,
                       ),
                   ],
                 ),
               ),
+            ),
+            if (start != null || _venue.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(15, 8, 15, 5),
+                child: Wrap(
+                  spacing: 7,
+                  runSpacing: 7,
+                  children: [
+                    if (start != null)
+                      _chip(Icons.calendar_today_outlined, _date(start), dark),
+                    if (start != null && widget.hasTime)
+                      _chip(
+                        Icons.access_time,
+                        '${_clock(start)}${widget.end == null ? '' : ' to ${_clock(widget.end!)}'}',
+                        dark,
+                      ),
+                    if (_venue.isNotEmpty)
+                      _chip(Icons.location_on_outlined, _venue, dark),
+                  ],
+                ),
+              ),
+            if (widget.imageUrl.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(15, 12, 15, 5),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: Image.network(
+                      widget.imageUrl,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) return child;
+
+                        return Container(
+                          color: _mist,
+                          alignment: Alignment.center,
+                          child: const CircularProgressIndicator(
+                            color: _violet,
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        debugPrint('EVENT IMAGE ERROR: $error');
+                        debugPrint('EVENT IMAGE URL: ${widget.imageUrl}');
+
+                        return Container(
+                          color: _mist,
+                          alignment: Alignment.center,
+                          child: const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.image_not_supported_outlined,
+                                color: _violet,
+                                size: 35,
+                              ),
+                              SizedBox(height: 6),
+                              Text(
+                                'Event image unavailable',
+                                style: TextStyle(color: _muted, fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            if (_expanded) ...[
+              if (!_past) ...[
+                if (_about.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: Text(
+                      _about,
+                      style: TextStyle(
+                        color: dark ? Colors.white70 : _muted,
+                        height: 1.6,
+                      ),
+                    ),
+                  ),
+                if (_agenda().isNotEmpty) ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 7),
+                    child: Text(
+                      'What will happen',
+                      style: TextStyle(
+                        color: dark ? _gold : _deepPurple,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  ..._agenda().map(
+                    (line) => Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 4, 16, 7),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.circle, size: 7, color: _gold),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              line,
+                              style: TextStyle(
+                                color: dark ? Colors.white : _ink,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ] else ...[
+                if (recap.isNotEmpty || _about.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 13, 16, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'What happened',
+                          style: TextStyle(
+                            color: _deepPurple,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        Text(
+                          recap.isNotEmpty ? recap : _about,
+                          style: const TextStyle(color: _muted, height: 1.6),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (attendees > 0 || highlights.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(15, 12, 15, 4),
+                    child: Wrap(
+                      spacing: 7,
+                      runSpacing: 7,
+                      children: [
+                        if (attendees > 0)
+                          _highlight('$attendees attended', true),
+                        ...highlights.map((e) => _highlight(e, false)),
+                      ],
+                    ),
+                  ),
+              ],
+              if ((!_past && start != null) || _link.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(15, 13, 15, 15),
+                  child: Row(
+                    children: [
+                      if (!_past && start != null)
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: widget.onCalendar,
+                            icon: const Icon(Icons.calendar_month, size: 17),
+                            label: const Text('Add to calendar'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: dark
+                                  ? Colors.white
+                                  : _deepPurple,
+                              side: BorderSide(
+                                color: dark ? Colors.white38 : _line,
+                              ),
+                              minimumSize: const Size(0, 44),
+                            ),
+                          ),
+                        ),
+                      if (!_past && start != null && _link.isNotEmpty)
+                        const SizedBox(width: 8),
+                      if (_link.isNotEmpty)
+                        Expanded(
+                          child: FilledButton.icon(
+                            onPressed: () => widget.onOpen(_link),
+                            icon: const Icon(Icons.open_in_new, size: 16),
+                            label: Text(_past ? 'See more' : 'Register'),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: dark ? _gold : _violet,
+                              foregroundColor: dark
+                                  ? const Color(0xFF2A1A00)
+                                  : Colors.white,
+                              minimumSize: const Size(0, 44),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

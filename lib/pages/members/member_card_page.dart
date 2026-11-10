@@ -687,207 +687,296 @@ class _MemberCardPageState extends State<MemberCardPage> {
     String type,
     String? imageUrl,
   ) {
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: [
-        _heroHeader(listing, imageUrl, loading: false),
-        Transform.translate(
-          offset: const Offset(0, -31),
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            padding: const EdgeInsets.fromLTRB(8, 14, 8, 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: _line),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x184B27A3),
-                  blurRadius: 26,
-                  offset: Offset(0, 10),
-                ),
-              ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth >= 1100;
+        final isTablet =
+            constraints.maxWidth >= 650 && constraints.maxWidth < 1100;
+
+        const maxContentWidth = 1240.0;
+        const horizontalPadding = 20.0;
+        const cardGap = 18.0;
+
+        final contentWidth = constraints.maxWidth > maxContentWidth
+            ? maxContentWidth
+            : constraints.maxWidth;
+
+        final availableWidth = contentWidth - (horizontalPadding * 2);
+
+        final cardWidth = isDesktop || isTablet
+            ? (availableWidth - cardGap) / 2
+            : availableWidth;
+
+        return ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: maxContentWidth),
+                child: _heroHeader(listing, imageUrl, loading: false),
+              ),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _quickAction(
-                    icon: Icons.call_outlined,
-                    label: 'Call',
-                    primary: true,
-                    enabled: _value(listing['phone']).isNotEmpty,
-                    onTap: _callMember,
+
+            Transform.translate(
+              offset: const Offset(0, -31),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: maxContentWidth),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.fromLTRB(8, 14, 8, 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: _line),
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x184B27A3),
+                          blurRadius: 26,
+                          offset: Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _quickAction(
+                            icon: Icons.call_outlined,
+                            label: 'Call',
+                            primary: true,
+                            enabled: _value(listing['phone']).isNotEmpty,
+                            onTap: _callMember,
+                          ),
+                        ),
+                        Expanded(
+                          child: _quickAction(
+                            icon: Icons.mail_outline,
+                            label: 'Email',
+                            enabled: _value(listing['email']).isNotEmpty,
+                            onTap: _emailMember,
+                          ),
+                        ),
+                        Expanded(
+                          child: _quickAction(
+                            icon: Icons.location_on_outlined,
+                            label: 'Chapter',
+                            enabled: _value(listing['chapter']).isNotEmpty,
+                            onTap: () {
+                              final chapter = _value(listing['chapter']);
+                              if (chapter.isNotEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Chapter: $chapter')),
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                        Expanded(
+                          child: _quickAction(
+                            icon: Icons.tag,
+                            label: 'Member ID',
+                            enabled: _value(listing['membershipNo']).isNotEmpty,
+                            onTap: () {
+                              final memberNo = _value(listing['membershipNo']);
+                              if (memberNo.isNotEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Member ID: $memberNo'),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                Expanded(
-                  child: _quickAction(
-                    icon: Icons.mail_outline,
-                    label: 'Email',
-                    enabled: _value(listing['email']).isNotEmpty,
-                    onTap: _emailMember,
-                  ),
-                ),
-                Expanded(
-                  child: _quickAction(
-                    icon: Icons.location_on_outlined,
-                    label: 'Chapter',
-                    enabled: _value(listing['chapter']).isNotEmpty,
-                    onTap: () {
-                      final chapter = _value(listing['chapter']);
-                      if (chapter.isNotEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Chapter: $chapter')),
-                        );
-                      }
-                    },
-                  ),
-                ),
-                Expanded(
-                  child: _quickAction(
-                    icon: Icons.tag,
-                    label: 'Member ID',
-                    enabled: _value(listing['membershipNo']).isNotEmpty,
-                    onTap: () {
-                      final memberNo = _value(listing['membershipNo']);
-                      if (memberNo.isNotEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Member ID: $memberNo')),
-                        );
-                      }
-                    },
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
-          child: Column(
-            children: [
-              _infoCard(
-                kicker: 'GET TO KNOW THEM',
-                title: 'About the business',
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _value(
-                        listing['description'],
-                        'This member has not added a business description yet.',
-                      ),
-                      style: const TextStyle(
-                        color: _ink2,
-                        fontSize: 14,
-                        height: 1.75,
-                      ),
+
+            Transform.translate(
+              offset: const Offset(0, -20),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: maxContentWidth),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      horizontalPadding,
+                      0,
+                      horizontalPadding,
+                      28,
                     ),
-                    if (_services().isNotEmpty) ...[
-                      const SizedBox(height: 20),
-                      Container(height: 1, color: const Color(0xFFF0EBFA)),
-                      const SizedBox(height: 17),
-                      const Text(
-                        'Services and expertise',
-                        style: TextStyle(
-                          color: Color(0xFF81759D),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
+                    child: Wrap(
+                      spacing: cardGap,
+                      runSpacing: cardGap,
+                      children: [
+                        SizedBox(
+                          width: cardWidth,
+                          child: _infoCard(
+                            kicker: 'GET TO KNOW THEM',
+                            title: 'About the business',
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _value(
+                                    listing['description'],
+                                    'This member has not added a business description yet.',
+                                  ),
+                                  style: const TextStyle(
+                                    color: _ink2,
+                                    fontSize: 14,
+                                    height: 1.75,
+                                  ),
+                                ),
+                                if (_services().isNotEmpty) ...[
+                                  const SizedBox(height: 20),
+                                  Container(
+                                    height: 1,
+                                    color: const Color(0xFFF0EBFA),
+                                  ),
+                                  const SizedBox(height: 17),
+                                  const Text(
+                                    'Services and expertise',
+                                    style: TextStyle(
+                                      color: Color(0xFF81759D),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 11),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: _services().map((service) {
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: _mist,
+                                          border: Border.all(
+                                            color: const Color(0xFFE8E0FA),
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            999,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          service,
+                                          style: const TextStyle(
+                                            color: _violetDark,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 11),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _services().map((service) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
+
+                        SizedBox(
+                          width: cardWidth,
+                          child: _infoCard(
+                            kicker: 'CONNECT DIRECTLY',
+                            title: 'Contact information',
+                            child: Column(
+                              children: [
+                                _contactRow(
+                                  icon: Icons.call_outlined,
+                                  label: 'Phone number',
+                                  value: _value(
+                                    listing['phone'],
+                                    'Not provided',
+                                  ),
+                                  isAvailable: _value(
+                                    listing['phone'],
+                                  ).isNotEmpty,
+                                  onTap: _callMember,
+                                ),
+                                _contactRow(
+                                  icon: Icons.mail_outline,
+                                  label: 'Email address',
+                                  value: _value(
+                                    listing['email'],
+                                    'Not provided',
+                                  ),
+                                  isAvailable: _value(
+                                    listing['email'],
+                                  ).isNotEmpty,
+                                  onTap: _emailMember,
+                                ),
+                                _contactRow(
+                                  icon: Icons.tag,
+                                  label: 'Membership number',
+                                  value: _value(
+                                    listing['membershipNo'],
+                                    'Not provided',
+                                  ),
+                                  isAvailable: _value(
+                                    listing['membershipNo'],
+                                  ).isNotEmpty,
+                                ),
+                                _contactRow(
+                                  icon: Icons.location_on_outlined,
+                                  label: 'Chapter',
+                                  value: _value(
+                                    listing['chapter'],
+                                    'Not provided',
+                                  ),
+                                  isAvailable: _value(
+                                    listing['chapter'],
+                                  ).isNotEmpty,
+                                ),
+                              ],
                             ),
-                            decoration: BoxDecoration(
-                              color: _mist,
-                              border: Border.all(
-                                color: const Color(0xFFE8E0FA),
-                              ),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              service,
-                              style: const TextStyle(
-                                color: _violetDark,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              _infoCard(
-                kicker: 'CONNECT DIRECTLY',
-                title: 'Contact information',
-                child: Column(
-                  children: [
-                    _contactRow(
-                      icon: Icons.call_outlined,
-                      label: 'Phone number',
-                      value: _value(listing['phone'], 'Not provided'),
-                      isAvailable: _value(listing['phone']).isNotEmpty,
-                      onTap: _callMember,
-                    ),
-                    _contactRow(
-                      icon: Icons.mail_outline,
-                      label: 'Email address',
-                      value: _value(listing['email'], 'Not provided'),
-                      isAvailable: _value(listing['email']).isNotEmpty,
-                      onTap: _emailMember,
-                    ),
-                    _contactRow(
-                      icon: Icons.tag,
-                      label: 'Membership number',
-                      value: _value(listing['membershipNo'], 'Not provided'),
-                      isAvailable: _value(listing['membershipNo']).isNotEmpty,
-                    ),
-                    _contactRow(
-                      icon: Icons.location_on_outlined,
-                      label: 'Chapter',
-                      value: _value(listing['chapter'], 'Not provided'),
-                      isAvailable: _value(listing['chapter']).isNotEmpty,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              InkWell(
-                onTap: () => context.go('/members'),
-                borderRadius: BorderRadius.circular(999),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.arrow_back, color: _violetDark, size: 17),
-                      SizedBox(width: 7),
-                      Text(
-                        'Return to all members',
-                        style: TextStyle(
-                          color: _violetDark,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
+                          ),
                         ),
-                      ),
-                    ],
+
+                        SizedBox(
+                          width: availableWidth,
+                          child: InkWell(
+                            onTap: () => context.go('/members'),
+                            borderRadius: BorderRadius.circular(999),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.arrow_back,
+                                    color: _violetDark,
+                                    size: 17,
+                                  ),
+                                  SizedBox(width: 7),
+                                  Text(
+                                    'Return to all members',
+                                    style: TextStyle(
+                                      color: _violetDark,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ],
-          ),
-        ),
-      ],
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -985,7 +1074,7 @@ class _MemberCardPageState extends State<MemberCardPage> {
             title,
             style: const TextStyle(
               color: _ink,
-              fontSize: 26,
+              fontSize: 21,
               fontWeight: FontWeight.w500,
             ),
           ),

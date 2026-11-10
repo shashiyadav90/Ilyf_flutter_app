@@ -290,33 +290,40 @@ class _ChatPageState extends State<ChatPage> {
         decoration: const BoxDecoration(gradient: _pageGradient),
         child: SafeArea(
           bottom: !widget.showBottomNav,
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 720),
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 380),
-                switchInCurve: Curves.easeOutCubic,
-                transitionBuilder: (child, animation) => FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, 0.03),
-                      end: Offset.zero,
-                    ).animate(animation),
-                    child: child,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 900),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 380),
+                      switchInCurve: Curves.easeOutCubic,
+                      transitionBuilder: (child, animation) => FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.03),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      ),
+                      child: showLanding
+                          ? KeyedSubtree(
+                              key: const ValueKey('landing'),
+                              child: _buildLanding(),
+                            )
+                          : KeyedSubtree(
+                              key: const ValueKey('chat'),
+                              child: _buildChatShell(),
+                            ),
+                    ),
                   ),
                 ),
-                child: showLanding
-                    ? KeyedSubtree(
-                        key: const ValueKey('landing'),
-                        child: _buildLanding(),
-                      )
-                    : KeyedSubtree(
-                        key: const ValueKey('chat'),
-                        child: _buildChatShell(),
-                      ),
-              ),
-            ),
+              );
+            },
           ),
         ),
       ),
@@ -326,8 +333,86 @@ class _ChatPageState extends State<ChatPage> {
   Widget _buildLanding() {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final isWeb = constraints.maxWidth >= 800;
+
+        // WEB LAYOUT
+        if (isWeb) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: math.max(520, constraints.maxHeight - 42),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // LEFT SIDE: BRAND AND LET'S BEGIN
+                  Expanded(
+                    flex: 5,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 45),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildBrand(),
+                          const SizedBox(height: 45),
+                          _buildConciergeCard(),
+                          const SizedBox(height: 20),
+                          _footerNote(
+                            icon: Icons.people_outline_rounded,
+                            text: 'Real people. Meaningful connections.',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // RIGHT SIDE: WELCOME AND ANIMATED AI
+                  Expanded(
+                    flex: 5,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const _AiOrb(size: 190),
+                        const SizedBox(height: 28),
+                        const Text(
+                          'Hi, welcome to ILYF',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: _ink,
+                            fontSize: 36,
+                            fontWeight: FontWeight.w800,
+                            height: 1.12,
+                            letterSpacing: -0.9,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 20),
+                          child: Text(
+                            'Find trusted professionals in your community. '
+                            'A little conversation. The right connection.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: _inkSecondary,
+                              fontSize: 16,
+                              height: 1.6,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // MOBILE / TABLET LAYOUT: KEEP VERTICAL DESIGN
         return SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(22, 16, 22, 18),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
           child: ConstrainedBox(
             constraints: BoxConstraints(
               minHeight: math.max(0, constraints.maxHeight - 34),
@@ -337,7 +422,9 @@ class _ChatPageState extends State<ChatPage> {
                 children: [
                   _buildBrand(),
                   const Spacer(flex: 2),
-                  const _AiOrb(size: 168),
+                  _AiOrb(
+                    size: MediaQuery.sizeOf(context).width < 600 ? 140 : 180,
+                  ),
                   const SizedBox(height: 22),
                   const Text(
                     'Hi, welcome to ILYF',
@@ -587,58 +674,148 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildStart() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
-      child: Column(
-        children: [
-          const _AiOrb(size: 62),
-          const SizedBox(height: 10),
-          const Text(
-            'Who can I help you connect with?',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: _ink,
-              fontSize: 29,
-              fontWeight: FontWeight.w800,
-              height: 1.15,
-              letterSpacing: -0.8,
-            ),
-          ),
-          const SizedBox(height: 14),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 10),
-            child: Text(
-              'Share what you need. I’ll ask a few follow-up questions, '
-              'then find relevant people in your community to help.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: _inkSecondary,
-                fontSize: 14,
-                height: 1.55,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isWeb = constraints.maxWidth >= 800;
+
+        // WEB LAYOUT
+        if (isWeb) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(40, 24, 40, 20),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: math.max(450, constraints.maxHeight - 44),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // LEFT SIDE: HEADING AND SUGGESTION CARDS
+                  Expanded(
+                    flex: 6,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 35),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            'Who can I help you connect with?',
+                            textAlign: TextAlign.left,
+                            style: TextStyle(
+                              color: _ink,
+                              fontSize: 32,
+                              fontWeight: FontWeight.w800,
+                              height: 1.15,
+                              letterSpacing: -0.8,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          const Text(
+                            'Share what you need. I’ll ask a few follow-up questions, '
+                            'then find relevant people in your community to help.',
+                            textAlign: TextAlign.left,
+                            style: TextStyle(
+                              color: _inkSecondary,
+                              fontSize: 14,
+                              height: 1.55,
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                          const Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'A PLACE TO START',
+                                  style: TextStyle(
+                                    color: _inkSecondary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1.1,
+                                  ),
+                                ),
+                              ),
+                              Icon(
+                                Icons.auto_awesome_rounded,
+                                size: 15,
+                                color: _violet,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          ..._starters.map(_buildStarter),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // RIGHT SIDE: ANIMATED AI
+                  Expanded(flex: 4, child: Center(child: _AiOrb(size: 190))),
+                ],
               ),
             ),
+          );
+        }
+
+        // MOBILE / TABLET LAYOUT: KEEP EXISTING DESIGN
+        return SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            MediaQuery.sizeOf(context).width < 600 ? 16 : 32,
+            4,
+            MediaQuery.sizeOf(context).width < 600 ? 16 : 32,
+            16,
           ),
-          const SizedBox(height: 26),
-          const Row(
+          child: Column(
             children: [
-              Expanded(
+              const _AiOrb(size: 62),
+              const SizedBox(height: 10),
+              Text(
+                'Who can I help you connect with?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _ink,
+                  fontSize: MediaQuery.sizeOf(context).width < 600 ? 25 : 32,
+                  fontWeight: FontWeight.w800,
+                  height: 1.15,
+                  letterSpacing: -0.8,
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10),
                 child: Text(
-                  'A PLACE TO START',
+                  'Share what you need. I’ll ask a few follow-up questions, '
+                  'then find relevant people in your community to help.',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     color: _inkSecondary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.1,
+                    fontSize: 14,
+                    height: 1.55,
                   ),
                 ),
               ),
-              Icon(Icons.auto_awesome_rounded, size: 15, color: _violet),
+              const SizedBox(height: 26),
+              const Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'A PLACE TO START',
+                      style: TextStyle(
+                        color: _inkSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.auto_awesome_rounded, size: 15, color: _violet),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ..._starters.map(_buildStarter),
             ],
           ),
-          const SizedBox(height: 12),
-          ..._starters.map(_buildStarter),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -716,7 +893,12 @@ class _ChatPageState extends State<ChatPage> {
   Widget _buildConversation() {
     return ListView(
       controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(17, 14, 17, 18),
+      padding: EdgeInsets.fromLTRB(
+        MediaQuery.sizeOf(context).width < 600 ? 14 : 28,
+        14,
+        MediaQuery.sizeOf(context).width < 600 ? 14 : 28,
+        18,
+      ),
       children: [
         if (_inquiry != null) _buildInquirySummary(),
         ..._messages.map(_buildMessage),
@@ -829,7 +1011,7 @@ class _ChatPageState extends State<ChatPage> {
         Icon(icon, size: 17, color: _inkSecondary),
         const SizedBox(width: 9),
         SizedBox(
-          width: 88,
+          width: MediaQuery.sizeOf(context).width < 400 ? 76 : 88,
           child: Text(
             label,
             style: const TextStyle(color: _inkSecondary, fontSize: 12),
@@ -855,8 +1037,13 @@ class _ChatPageState extends State<ChatPage> {
       return Align(
         alignment: Alignment.centerRight,
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 330),
-          margin: const EdgeInsets.only(bottom: 14, left: 38),
+          constraints: BoxConstraints(
+            maxWidth: math.min(MediaQuery.sizeOf(context).width * 0.78, 620),
+          ),
+          margin: EdgeInsets.only(
+            bottom: 14,
+            left: MediaQuery.sizeOf(context).width < 600 ? 20 : 60,
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 13),
           decoration: BoxDecoration(
             gradient: _bubbleGradient,
@@ -1323,13 +1510,18 @@ class _ChatPageState extends State<ChatPage> {
     final canSend = _input.trim().isNotEmpty && !_loading;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+      padding: EdgeInsets.fromLTRB(
+        MediaQuery.sizeOf(context).width < 600 ? 12 : 28,
+        6,
+        MediaQuery.sizeOf(context).width < 600 ? 12 : 28,
+        10,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.fromLTRB(16, 4, 10, 10),
+            padding: const EdgeInsets.fromLTRB(12, 4, 8, 8),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(22),

@@ -74,6 +74,32 @@ class _OverviewPageState extends State<OverviewPage> {
     return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
+  // RESPONSIVE BREAKPOINTS
+  bool _isMobile(double width) => width < 600;
+
+  bool _isTablet(double width) => width >= 600 && width < 1100;
+
+  bool _isDesktop(double width) => width >= 1100;
+
+  double _contentMaxWidth(double width) {
+    if (width >= 1500) return 1440;
+    return width;
+  }
+
+  double _horizontalPadding(double width) {
+    if (width >= 1400) return 40;
+    if (width >= 1100) return 32;
+    if (width >= 600) return 24;
+    return 18;
+  }
+
+  Widget _responsiveSection({required double width, required Widget child}) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: _horizontalPadding(width)),
+      child: child,
+    );
+  }
+
   void _readStoriesFromOverview(Map<String, dynamic> data) {
     final stories = data['stories'];
 
@@ -717,21 +743,83 @@ class _OverviewPageState extends State<OverviewPage> {
             ? const Center(child: CircularProgressIndicator(color: purple))
             : _error != null
             ? _errorView()
-            : RefreshIndicator(
-                color: purple,
-                onRefresh: _fetchOverview,
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.only(bottom: 28),
-                  children: [
-                    _greetingSection(),
-                    _storiesSection(),
-                    _statisticsSection(),
-                    _activitySection(),
-                    _enquiriesSection(),
-                    _offersSection(),
-                  ],
-                ),
+            : LayoutBuilder(
+                builder: (context, constraints) {
+                  final width = constraints.maxWidth;
+                  final isMobile = _isMobile(width);
+                  final isDesktop = _isDesktop(width);
+                  final horizontalPadding = _horizontalPadding(width);
+
+                  return RefreshIndicator(
+                    color: purple,
+                    onRefresh: _fetchOverview,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: _contentMaxWidth(width),
+                          ),
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                              left: horizontalPadding,
+                              right: horizontalPadding,
+                              top: isMobile ? 8 : 28,
+                              bottom: 40,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                // GREETING
+                                _greetingSection(),
+
+                                SizedBox(height: isMobile ? 16 : 24),
+
+                                // STORIES
+                                _storiesSection(),
+
+                                SizedBox(height: isMobile ? 20 : 28),
+
+                                // STATISTICS
+                                _statisticsSection(),
+
+                                SizedBox(height: isMobile ? 20 : 28),
+
+                                // ACTIVITY CHART
+                                _activitySection(),
+
+                                SizedBox(height: isMobile ? 20 : 28),
+
+                                // ENQUIRIES + OFFERS
+                                if (isDesktop)
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        flex: 6,
+                                        child: _enquiriesSection(),
+                                      ),
+                                      const SizedBox(width: 24),
+                                      Expanded(
+                                        flex: 5,
+                                        child: _offersSection(),
+                                      ),
+                                    ],
+                                  )
+                                else ...[
+                                  _enquiriesSection(),
+                                  const SizedBox(height: 24),
+                                  _offersSection(),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
       ),
     );
@@ -766,7 +854,7 @@ class _OverviewPageState extends State<OverviewPage> {
   // GREETING SECTION
   Widget _greetingSection() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 23, 18, 18),
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 18),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(20),
@@ -1038,47 +1126,64 @@ class _OverviewPageState extends State<OverviewPage> {
         children: [
           _sectionHeading('Your activity', 'A quick look at your community'),
           const SizedBox(height: 13),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            childAspectRatio: 1.30,
-            children: [
-              _statCard(
-                'Total Enquiries',
-                '${_number(_stats['totalEnquiries'])}',
-                Icons.mark_email_unread_outlined,
-                const Color(0xFFECE4FF),
-                purple,
-                'All enquiries',
-              ),
-              _statCard(
-                'Pending Enquiries',
-                '${_number(_stats['pendingEnquiries'])}',
-                Icons.pending_actions_rounded,
-                const Color(0xFFFFECDD),
-                const Color(0xFFE18A42),
-                'Awaiting response',
-              ),
-              _statCard(
-                'Completed',
-                '${_number(_stats['completedEnquiries'])}',
-                Icons.task_alt_rounded,
-                const Color(0xFFDFF3E8),
-                const Color(0xFF29986B),
-                'Resolved enquiries',
-              ),
-              _statCard(
-                'Active Offers',
-                '${_number(_stats['activeOffers'])}',
-                Icons.local_offer_outlined,
-                const Color(0xFFE3EBFF),
-                const Color(0xFF4B75D1),
-                'Currently active',
-              ),
-            ],
+
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+
+              final columns = width >= 1100
+                  ? 4
+                  : width >= 600
+                  ? 2
+                  : 2;
+
+              return GridView.count(
+                crossAxisCount: columns,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                childAspectRatio: width >= 1100
+                    ? 1.45
+                    : width >= 600
+                    ? 1.35
+                    : 1.20,
+                children: [
+                  _statCard(
+                    'Total Enquiries',
+                    '${_number(_stats['totalEnquiries'])}',
+                    Icons.mark_email_unread_outlined,
+                    const Color(0xFFECE4FF),
+                    purple,
+                    'All enquiries',
+                  ),
+                  _statCard(
+                    'Pending Enquiries',
+                    '${_number(_stats['pendingEnquiries'])}',
+                    Icons.pending_actions_rounded,
+                    const Color(0xFFFFECDD),
+                    const Color(0xFFE18A42),
+                    'Awaiting response',
+                  ),
+                  _statCard(
+                    'Completed',
+                    '${_number(_stats['completedEnquiries'])}',
+                    Icons.task_alt_rounded,
+                    const Color(0xFFDFF3E8),
+                    const Color(0xFF29986B),
+                    'Resolved enquiries',
+                  ),
+                  _statCard(
+                    'Active Offers',
+                    '${_number(_stats['activeOffers'])}',
+                    Icons.local_offer_outlined,
+                    const Color(0xFFE3EBFF),
+                    const Color(0xFF4B75D1),
+                    'Currently active',
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -1094,7 +1199,7 @@ class _OverviewPageState extends State<OverviewPage> {
     String caption,
   ) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(19),
@@ -1109,7 +1214,7 @@ class _OverviewPageState extends State<OverviewPage> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           Row(
             children: [
@@ -1134,7 +1239,7 @@ class _OverviewPageState extends State<OverviewPage> {
             value,
             style: const TextStyle(
               color: ink,
-              fontSize: 23,
+              fontSize: 21,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -1164,7 +1269,7 @@ class _OverviewPageState extends State<OverviewPage> {
   // ACTIVITY GRAPH
   Widget _activitySection() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 25, 18, 0),
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(

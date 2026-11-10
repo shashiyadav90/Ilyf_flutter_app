@@ -1,4 +1,3 @@
-
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -19,9 +18,7 @@ class StoryService {
     XFile? file,
     String? text,
   }) async {
-    final Map<String, dynamic> formFields = {
-      'mediaType': mediaType,
-    };
+    final Map<String, dynamic> formFields = {'mediaType': mediaType};
 
     if (text != null && text.trim().isNotEmpty) {
       formFields['text'] = text.trim();
@@ -30,10 +27,7 @@ class StoryService {
     if (file != null) {
       final bytes = await file.readAsBytes();
 
-      formFields['file'] = MultipartFile.fromBytes(
-        bytes,
-        filename: file.name,
-      );
+      formFields['file'] = MultipartFile.fromBytes(bytes, filename: file.name);
     }
 
     final formData = FormData.fromMap(formFields);
@@ -49,27 +43,21 @@ class StoryService {
 
   // POST: Mark story as viewed
   Future<dynamic> viewStory(String storyId) async {
-    final response = await _dio.post(
-      '/overview/stories/$storyId/view',
-    );
+    final response = await _dio.post('/overview/stories/$storyId/view');
 
     return response.data;
   }
 
   // DELETE: Delete a story
   Future<dynamic> deleteStory(String storyId) async {
-    final response = await _dio.delete(
-      '/overview/stories/$storyId',
-    );
+    final response = await _dio.delete('/overview/stories/$storyId');
 
     return response.data;
   }
 
   // GET: Get story viewers
   Future<dynamic> getStoryViews(String storyId) async {
-    final response = await _dio.get(
-      '/overview/stories/$storyId/views',
-    );
+    final response = await _dio.get('/overview/stories/$storyId/views');
 
     return response.data;
   }

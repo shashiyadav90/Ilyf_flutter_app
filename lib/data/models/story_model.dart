@@ -54,17 +54,13 @@ class StoryMemberGroup {
         ? Map<String, dynamic>.from(json['member'])
         : <String, dynamic>{};
 
-    final storyList = json['stories'] is List
-        ? (json['stories'] as List)
-        : [];
+    final storyList = json['stories'] is List ? (json['stories'] as List) : [];
 
     return StoryMemberGroup(
       member: memberData,
       stories: storyList
           .whereType<Map>()
-          .map((item) => StoryModel.fromJson(
-                Map<String, dynamic>.from(item),
-              ))
+          .map((item) => StoryModel.fromJson(Map<String, dynamic>.from(item)))
           .toList(),
       hasUnseen: json['hasUnseen'] == true,
     );

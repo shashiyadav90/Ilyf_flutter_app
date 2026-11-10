@@ -415,7 +415,7 @@ class _OffersPageState extends State<OffersPage> {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
                         const Expanded(
@@ -674,12 +674,37 @@ class _OffersPageState extends State<OffersPage> {
             if (_error != null) _buildError(),
             if (!_loading && _error == null && _filteredOffers.isEmpty)
               _buildEmpty(),
-            if (!_loading && _error == null)
-              ..._filteredOffers.asMap().entries.map(
-                (entry) => Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: _buildOfferCard(entry.value, entry.key),
-                ),
+            if (!_loading && _error == null && _filteredOffers.isNotEmpty)
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final width = constraints.maxWidth;
+
+                  final crossAxisCount = width >= 1100
+                      ? 3
+                      : width >= 650
+                      ? 2
+                      : 1;
+
+                  return GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: EdgeInsets.zero,
+                    itemCount: _filteredOffers.length,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      crossAxisSpacing: 18,
+                      mainAxisSpacing: 18,
+                      mainAxisExtent: crossAxisCount == 3
+                          ? 420
+                          : crossAxisCount == 2
+                          ? 480
+                          : 540,
+                    ),
+                    itemBuilder: (context, index) {
+                      return _buildOfferCard(_filteredOffers[index], index);
+                    },
+                  );
+                },
               ),
             const SizedBox(height: 5),
             _buildCommunityNote(),
@@ -1039,7 +1064,7 @@ class _OffersPageState extends State<OffersPage> {
             ),
           ),
           SizedBox(
-            height: 225,
+            height: 150,
             width: double.infinity,
             child: Stack(
               fit: StackFit.expand,
@@ -1048,7 +1073,7 @@ class _OffersPageState extends State<OffersPage> {
                   Image.network(
                     _mediaUrl(cover), // IMPORTANT: use _mediaUrl here
                     width: double.infinity,
-                    height: 225,
+                    height: 150,
                     fit: BoxFit.cover,
                     gaplessPlayback: true,
                     loadingBuilder: (context, child, loadingProgress) {
@@ -1277,7 +1302,6 @@ class _OffersPageState extends State<OffersPage> {
                         size: 19,
                       ),
                     ),
-                    const Spacer(),
                     OutlinedButton(
                       onPressed: () => _showComments(offer, id),
                       style: OutlinedButton.styleFrom(
@@ -1443,7 +1467,7 @@ class _OffersPageState extends State<OffersPage> {
 
   Widget _buildError() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFFFFF7F9),
         border: Border.all(color: const Color(0xFFF4D2DB)),
