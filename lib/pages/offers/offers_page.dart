@@ -8,6 +8,7 @@ import '../../core/config/api_config.dart';
 import '../../components/app_header.dart';
 import '../../components/bottom_nav.dart';
 import '../../main.dart';
+import '../members/membership_required_page.dart';
 
 const _purple = Color(0xFF6C2BE8);
 const _purpleDark = Color(0xFF4F1BD0);
@@ -33,6 +34,10 @@ class _OffersPageState extends State<OffersPage> {
   final Set<String> _liked = {};
   final Set<String> _saved = {};
   final Map<String, List<Map<String, String>>> _comments = {};
+
+  bool get _hasFullAccess {
+    return authService.member?.hasMembersDirectoryAccess ?? false;
+  }
 
   final List<String> _filters = [
     'All offers',
@@ -62,6 +67,15 @@ class _OffersPageState extends State<OffersPage> {
         context.go('/login?next=/offers');
       });
 
+      return;
+    }
+
+    if (!_hasFullAccess) {
+      setState(() {
+        _loading = false;
+        _error = null;
+        _offers = [];
+      });
       return;
     }
 
@@ -593,121 +607,127 @@ class _OffersPageState extends State<OffersPage> {
           padding: const EdgeInsets.fromLTRB(14, 16, 14, 28),
           children: [
             _buildHero(),
-            const SizedBox(height: 27),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Explore Listings',
-                        style: TextStyle(
-                          color: _ink,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -.6,
+
+            if (!_hasFullAccess) ...[
+              const SizedBox(height: 20),
+              const MembershipRequiredPage(embedded: true),
+            ] else ...[
+              const SizedBox(height: 27),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Explore Listings',
+                          style: TextStyle(
+                            color: _ink,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -.6,
+                          ),
                         ),
+                        SizedBox(height: 5),
+                        Text(
+                          'Something good might be just around the corner.',
+                          style: TextStyle(color: _muted, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 11,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF7F2FF),
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(color: _border),
+                    ),
+                    child: Text(
+                      '${_offers.length} ${_offers.length == 1 ? 'offer' : 'offers'}',
+                      style: const TextStyle(
+                        color: _purple,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
                       ),
-                      SizedBox(height: 5),
-                      Text(
-                        'Something good might be just around the corner.',
-                        style: TextStyle(color: _muted, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildSearch(),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 42,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _filters.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final filter = _filters[index];
+                    final active = filter == _filter;
+                    return ChoiceChip(
+                      label: Text(filter),
+                      selected: active,
+                      showCheckmark: false,
+                      onSelected: (_) => setState(() => _filter = filter),
+                      labelStyle: TextStyle(
+                        color: active ? Colors.white : _muted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
                       ),
-                    ],
-                  ),
+                      backgroundColor: Colors.white,
+                      selectedColor: _purple,
+                      side: BorderSide(color: active ? _purple : _border),
+                      shape: const StadiumBorder(),
+                    );
+                  },
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 11,
-                    vertical: 7,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF7F2FF),
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: _border),
-                  ),
-                  child: Text(
-                    '${_offers.length} ${_offers.length == 1 ? 'offer' : 'offers'}',
-                    style: const TextStyle(
-                      color: _purple,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+              ),
+              const SizedBox(height: 14),
+              if (_loading) _buildLoading(),
+              if (_error != null) _buildError(),
+              if (!_loading && _error == null && _filteredOffers.isEmpty)
+                _buildEmpty(),
+              if (!_loading && _error == null && _filteredOffers.isNotEmpty)
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final width = constraints.maxWidth;
+
+                    final crossAxisCount = width >= 1100
+                        ? 3
+                        : width >= 650
+                        ? 2
+                        : 1;
+
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: EdgeInsets.zero,
+                      itemCount: _filteredOffers.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        crossAxisSpacing: 18,
+                        mainAxisSpacing: 18,
+                        mainAxisExtent: crossAxisCount == 3
+                            ? 420
+                            : crossAxisCount == 2
+                            ? 480
+                            : 4,
+                      ),
+                      itemBuilder: (context, index) {
+                        return _buildOfferCard(_filteredOffers[index], index);
+                      },
+                    );
+                  },
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildSearch(),
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 42,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: _filters.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (context, index) {
-                  final filter = _filters[index];
-                  final active = filter == _filter;
-                  return ChoiceChip(
-                    label: Text(filter),
-                    selected: active,
-                    showCheckmark: false,
-                    onSelected: (_) => setState(() => _filter = filter),
-                    labelStyle: TextStyle(
-                      color: active ? Colors.white : _muted,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    backgroundColor: Colors.white,
-                    selectedColor: _purple,
-                    side: BorderSide(color: active ? _purple : _border),
-                    shape: const StadiumBorder(),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 14),
-            if (_loading) _buildLoading(),
-            if (_error != null) _buildError(),
-            if (!_loading && _error == null && _filteredOffers.isEmpty)
-              _buildEmpty(),
-            if (!_loading && _error == null && _filteredOffers.isNotEmpty)
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final width = constraints.maxWidth;
-
-                  final crossAxisCount = width >= 1100
-                      ? 3
-                      : width >= 650
-                      ? 2
-                      : 1;
-
-                  return GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    padding: EdgeInsets.zero,
-                    itemCount: _filteredOffers.length,
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: crossAxisCount,
-                      crossAxisSpacing: 18,
-                      mainAxisSpacing: 18,
-                      mainAxisExtent: crossAxisCount == 3
-                          ? 420
-                          : crossAxisCount == 2
-                          ? 480
-                          : 540,
-                    ),
-                    itemBuilder: (context, index) {
-                      return _buildOfferCard(_filteredOffers[index], index);
-                    },
-                  );
-                },
-              ),
-            const SizedBox(height: 5),
-            _buildCommunityNote(),
+              const SizedBox(height: 5),
+              _buildCommunityNote(),
+            ],
           ],
         ),
       ),
@@ -1191,7 +1211,7 @@ class _OffersPageState extends State<OffersPage> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(15, 15, 15, 13),
+            padding: const EdgeInsets.fromLTRB(15, 12, 15, 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1208,7 +1228,7 @@ class _OffersPageState extends State<OffersPage> {
                 const SizedBox(height: 8),
                 Text(
                   description,
-                  maxLines: 4,
+                  maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: _muted,

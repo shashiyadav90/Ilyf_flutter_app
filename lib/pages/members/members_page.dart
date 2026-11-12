@@ -8,6 +8,7 @@ import '../../components/bottom_nav.dart';
 import '../../data/models/member.dart';
 import '../../core/config/api_config.dart';
 import '../../main.dart';
+import 'membership_required_page.dart';
 
 class MembersPage extends StatefulWidget {
   const MembersPage({super.key});
@@ -25,6 +26,10 @@ class _MembersPageState extends State<MembersPage> {
   static const rose = Color(0xFFE8447F);
 
   bool get _signedIn => authService.isLoggedIn;
+
+  bool get _hasFullAccess {
+    return authService.member?.hasMembersDirectoryAccess ?? false;
+  }
 
   static const directoryEndpoint = '/businesses';
   static const filtersEndpoint = '/businesses/filters';
@@ -49,9 +54,14 @@ class _MembersPageState extends State<MembersPage> {
 
       if (!_signedIn) {
         context.go('/login?next=/members');
-      } else {
-        _loadMembers();
+        return;
       }
+
+      if (!_hasFullAccess) {
+        return;
+      }
+
+      _loadMembers();
     });
   }
 
@@ -278,6 +288,11 @@ class _MembersPageState extends State<MembersPage> {
         backgroundColor: Color(0xFFF4EFFF),
         body: Center(child: CircularProgressIndicator(color: purple)),
       );
+    }
+
+    // General members see the membership upgrade page.
+    if (!_hasFullAccess) {
+      return const MembershipRequiredPage();
     }
 
     final visible = _visibleMembers;
@@ -733,23 +748,24 @@ class _MemberCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Color(0xFF111827),
-                          fontSize: 12,
-                          height: 1.2,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 16,
+                          height: 1.25,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       Text(
                         member.category.isEmpty ? 'Member' : member.category,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Color(0xFF344454),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          height: 1.3,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
                           const Icon(
@@ -767,22 +783,24 @@ class _MemberCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 color: Color(0xFF5F5979),
-                                fontSize: 11,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
                         ],
                       ),
                       if (member.effectiveMembershipNo.isNotEmpty) ...[
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 8),
                         Text(
                           'ILYF ID: ${member.effectiveMembershipNo}',
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Color(0xFF111827),
-                            fontSize: 9,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                            height: 1.3,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
                       ],

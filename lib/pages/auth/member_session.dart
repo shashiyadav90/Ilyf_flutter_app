@@ -5,6 +5,7 @@ class MemberSession {
   final String kind;
   final String? status;
   final String? chapterId;
+  final String? membershipType;
   final Map<String, dynamic>? listing;
   final DateTime loggedInAt;
 
@@ -15,6 +16,7 @@ class MemberSession {
     this.kind = 'member',
     this.status,
     this.chapterId,
+    this.membershipType,
     this.listing,
     required this.loggedInAt,
   });
@@ -27,11 +29,18 @@ class MemberSession {
       kind: json['kind']?.toString() ?? 'member',
       status: json['status']?.toString(),
       chapterId: json['chapterId']?.toString(),
+      membershipType: json['membershipType']?.toString(),
       listing: json['listing'] is Map
           ? Map<String, dynamic>.from(json['listing'])
           : null,
       loggedInAt: DateTime.now(),
     );
+  }
+
+  bool get isGeneral => role?.toUpperCase() == 'GENERAL';
+
+  bool get hasMembersDirectoryAccess {
+    return role?.toUpperCase() == 'MEMBER' || isStaff;
   }
 
   bool get isRoot => kind == 'root' || role == 'SUPER_ADMIN';

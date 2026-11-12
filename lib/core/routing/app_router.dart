@@ -13,6 +13,8 @@ import '../../pages/auth/login_success_page.dart';
 import '../../pages/news/news_page.dart';
 import '../../pages/overview/overview_page.dart';
 import '../../pages/membership/membership_page.dart';
+import '../../pages/members/membership_required_page.dart';
+import '../../pages/admin/admin_home_page.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: RouteNames.chat,
@@ -38,6 +40,10 @@ final GoRouter appRouter = GoRouter(
           MemberCardPage(id: state.pathParameters['id']!),
     ),
     GoRoute(
+      path: '/membership-required',
+      builder: (context, state) => const MembershipRequiredPage(),
+    ),
+    GoRoute(
       path: '/membership',
       builder: (context, state) => const MembershipPage(),
     ),
@@ -53,11 +59,7 @@ final GoRouter appRouter = GoRouter(
           ComingSoonPage(title: 'Edit News ${state.pathParameters['id']}'),
     ),
     GoRoute(path: '/profile', builder: (context, state) => const ProfilePage()),
-    GoRoute(
-      path: '/admin',
-      builder: (context, state) =>
-          const ComingSoonPage(title: 'Admin Dashboard'),
-    ),
+    GoRoute(path: '/admin', builder: (context, state) => const AdminHomePage()),
     GoRoute(
       path: '/admin/chapters',
       builder: (context, state) =>

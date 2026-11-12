@@ -5,8 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../components/app_header.dart';
 import '../../components/bottom_nav.dart';
 import '../../data/repositories/inquiry_chat_repository.dart';
-
-const String _orbAsset = 'assets/images/ai_animation.jpg';
+import '../chat/ilo_mascot.dart';
 
 const Color _ink = Color(0xFF211C45);
 const Color _inkSecondary = Color(0xFF6A6685);
@@ -374,7 +373,7 @@ class _ChatPageState extends State<ChatPage> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const _AiOrb(size: 190),
+                        const IloMascot(size: 190, mood: IloMood.greet),
                         const SizedBox(height: 28),
                         const Text(
                           'Hi, welcome to ILYF',
@@ -422,8 +421,9 @@ class _ChatPageState extends State<ChatPage> {
                 children: [
                   _buildBrand(),
                   const Spacer(flex: 2),
-                  _AiOrb(
+                  IloMascot(
                     size: MediaQuery.sizeOf(context).width < 600 ? 140 : 180,
+                    mood: IloMood.greet,
                   ),
                   const SizedBox(height: 22),
                   const Text(
@@ -749,7 +749,12 @@ class _ChatPageState extends State<ChatPage> {
                   ),
 
                   // RIGHT SIDE: ANIMATED AI
-                  Expanded(flex: 4, child: Center(child: _AiOrb(size: 190))),
+                  Expanded(
+                    flex: 4,
+                    child: Center(
+                      child: IloMascot(size: 190, mood: IloMood.idle),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -766,7 +771,7 @@ class _ChatPageState extends State<ChatPage> {
           ),
           child: Column(
             children: [
-              const _AiOrb(size: 62),
+              const IloMascot(size: 100, mood: IloMood.idle),
               const SizedBox(height: 10),
               Text(
                 'Who can I help you connect with?',
@@ -1082,7 +1087,7 @@ class _ChatPageState extends State<ChatPage> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _orbImage(28),
+              const IloAvatar(size: 32),
               const SizedBox(width: 8),
               const Text(
                 'ILYF Connect',
@@ -1203,7 +1208,7 @@ class _ChatPageState extends State<ChatPage> {
       alignment: Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(bottom: 14),
-        padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border.all(color: _line),
@@ -1212,12 +1217,8 @@ class _ChatPageState extends State<ChatPage> {
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              width: 15,
-              height: 15,
-              child: CircularProgressIndicator(strokeWidth: 2, color: _violet),
-            ),
-            SizedBox(width: 11),
+            IloMascot(size: 48, mood: IloMood.searching),
+            SizedBox(width: 10),
             Text(
               'Finding the right people...',
               style: TextStyle(
@@ -1640,138 +1641,6 @@ class _ChatPageState extends State<ChatPage> {
       tooltip: tooltip,
       visualDensity: VisualDensity.compact,
       icon: Icon(icon, size: 22, color: _inkSecondary),
-    );
-  }
-}
-
-Widget _orbImage(double size) {
-  return ClipOval(
-    child: Image.asset(
-      _orbAsset,
-      width: size,
-      height: size,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) => Container(
-        width: size,
-        height: size,
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(
-            center: Alignment(-0.3, -0.4),
-            colors: [Color(0xFFCDB0FF), Color(0xFF8C5BF0), Color(0xFF5B3FD8)],
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-class _AiOrb extends StatefulWidget {
-  const _AiOrb({required this.size});
-
-  final double size;
-
-  @override
-  State<_AiOrb> createState() => _AiOrbState();
-}
-
-class _AiOrbState extends State<_AiOrb> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 8),
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (MediaQuery.of(context).disableAnimations) {
-      _controller.stop();
-    } else if (!_controller.isAnimating) {
-      _controller.repeat();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Widget _ring(double diameter, double alpha) {
-    return Container(
-      width: diameter,
-      height: diameter,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: _violet.withValues(alpha: alpha * 0.3),
-        border: Border.all(color: _violet.withValues(alpha: alpha)),
-      ),
-    );
-  }
-
-  Widget _orbit(double diameter, double turns, double dot) {
-    return Transform.rotate(
-      angle: turns * 2 * math.pi,
-      child: SizedBox(
-        width: diameter,
-        height: diameter,
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: Container(
-            width: dot,
-            height: dot,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white,
-              border: Border.all(color: _violet.withValues(alpha: 0.45)),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final size = widget.size;
-    final outer = size * 1.5;
-    final inner = size * 1.26;
-
-    return SizedBox(
-      width: outer,
-      height: outer,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          final t = _controller.value;
-          final breathe = 1 + 0.03 * math.sin(t * 2 * math.pi);
-
-          return Stack(
-            alignment: Alignment.center,
-            children: [
-              _ring(outer, 0.10),
-              _ring(inner, 0.16),
-              Container(
-                width: size,
-                height: size,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: _violet.withValues(alpha: 0.36),
-                      blurRadius: size * 0.3,
-                      spreadRadius: size * 0.02,
-                    ),
-                  ],
-                ),
-              ),
-              Transform.scale(scale: breathe, child: _orbImage(size)),
-              _orbit(outer, t, math.max(5, size * 0.04)),
-              _orbit(inner, -2 * t, math.max(4, size * 0.03)),
-            ],
-          );
-        },
-      ),
     );
   }
 }

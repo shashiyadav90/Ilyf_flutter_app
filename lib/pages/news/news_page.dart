@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../members/membership_required_page.dart';
 
 import '../../components/app_header.dart';
 import '../../components/bottom_nav.dart';
@@ -26,6 +27,7 @@ class NewsPage extends StatefulWidget {
 
 class _NewsPageState extends State<NewsPage> {
   final Dio _dio = ApiConfig.dio;
+  final Set<String> _expandedNewsIds = {};
   int _tab = 0;
   bool _newsLoading = true;
   bool _eventsLoading = true;
@@ -38,17 +40,29 @@ class _NewsPageState extends State<NewsPage> {
   bool get _signedIn => authService.isLoggedIn;
   bool get _staff => authService.isStaff;
 
+  bool get _hasFullAccess {
+    return authService.member?.hasMembersDirectoryAccess ?? false;
+  }
+
   @override
   void initState() {
     super.initState();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+
       if (!_signedIn) {
         context.go('/login?next=/news');
-      } else {
-        _loadNews();
-        _loadEvents();
+        return;
       }
+
+      // Restrict General users from News and Events.
+      if (!_hasFullAccess) {
+        return;
+      }
+
+      _loadNews();
+      _loadEvents();
     });
   }
 
@@ -96,7 +110,7 @@ class _NewsPageState extends State<NewsPage> {
   }
 
   Future<void> _loadNews() async {
-    if (!_signedIn) return;
+    if (!_signedIn || !_hasFullAccess) return;
     setState(() {
       _newsLoading = true;
       _newsError = null;
@@ -131,7 +145,7 @@ class _NewsPageState extends State<NewsPage> {
   }
 
   Future<void> _loadEvents() async {
-    if (!_signedIn) return;
+    if (!_signedIn || !_hasFullAccess) return;
     setState(() {
       _eventsLoading = true;
       _eventsError = null;
@@ -315,6 +329,12 @@ class _NewsPageState extends State<NewsPage> {
         body: Center(child: CircularProgressIndicator(color: _violet)),
       );
     }
+
+    // Show membership-required screen for General users.
+    if (!_hasFullAccess) {
+      return const MembershipRequiredPage();
+    }
+
     return Scaffold(
       backgroundColor: _mist,
       appBar: PreferredSize(
@@ -475,23 +495,30 @@ class _NewsPageState extends State<NewsPage> {
               ? 2
               : 1;
 
-          return GridView.builder(
+          final cardWidth =
+              (constraints.maxWidth - 28 - (16 * (columns - 1))) / columns;
+
+          return ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(14, 4, 14, 24),
-            itemCount: _news.length,
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: columns,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              mainAxisExtent: columns == 3
-                  ? 500
-                  : columns == 2
-                  ? 480
-                  : 520,
-            ),
-            itemBuilder: (context, index) {
-              return _newsCard(_news[index]);
-            },
+            children: [
+              Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                crossAxisAlignment: WrapCrossAlignment.start,
+                children: _news.map((item) {
+                  return SizedBox(
+                    width: cardWidth,
+                    child: AnimatedSize(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeInOut,
+                      alignment: Alignment.topCenter,
+                      child: _newsCard(item),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
           );
         },
       ),
@@ -627,17 +654,84 @@ class _NewsPageState extends State<NewsPage> {
                       height: 1.3,
                     ),
                   ),
-                if (body.isNotEmpty) ...[
-                  if (image.isNotEmpty) const SizedBox(height: 7),
-                  Text(
-                    body,
-                    style: const TextStyle(
+                Builder(
+                  builder: (context) {
+                    final String newsId = _id(item);
+                    final bool isExpanded = _expandedNewsIds.contains(newsId);
+
+                    const descriptionStyle = TextStyle(
                       color: _muted,
                       fontSize: 14,
                       height: 1.6,
-                    ),
-                  ),
-                ],
+                    );
+
+                    return LayoutBuilder(
+                      builder: (context, constraints) {
+                        final textPainter = TextPainter(
+                          text: const TextSpan(),
+                          textDirection: Directionality.of(context),
+                        );
+
+                        textPainter.text = TextSpan(
+                          text: body,
+                          style: descriptionStyle,
+                        );
+
+                        textPainter.maxLines = 3;
+                        textPainter.ellipsis = '...';
+                        textPainter.textScaler = MediaQuery.textScalerOf(
+                          context,
+                        );
+
+                        textPainter.layout(maxWidth: constraints.maxWidth);
+
+                        final bool hasMore = textPainter.didExceedMaxLines;
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            AnimatedSize(
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.easeInOut,
+                              alignment: Alignment.topCenter,
+                              child: Text(
+                                body,
+                                maxLines: isExpanded ? null : 3,
+                                overflow: isExpanded
+                                    ? TextOverflow.visible
+                                    : TextOverflow.ellipsis,
+                                style: descriptionStyle,
+                              ),
+                            ),
+
+                            if (hasMore)
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: TextButton(
+                                  onPressed: () {
+                                    setState(() {
+                                      if (isExpanded) {
+                                        _expandedNewsIds.remove(newsId);
+                                      } else {
+                                        _expandedNewsIds.add(newsId);
+                                      }
+                                    });
+                                  },
+                                  child: Text(
+                                    isExpanded ? 'Read less' : 'Read more',
+                                    style: const TextStyle(
+                                      color: _deepPurple,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                ),
                 if (link.isNotEmpty)
                   Align(
                     alignment: Alignment.centerLeft,
@@ -808,37 +902,32 @@ class _NewsPageState extends State<NewsPage> {
               );
             }
 
-            return GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              padding: EdgeInsets.zero,
-              itemCount: events.length,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: columns,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                mainAxisExtent: columns == 3
-                    ? 500
-                    : columns == 2
-                    ? 460
-                    : 440,
-              ),
-              itemBuilder: (context, index) {
-                final event = events[index];
+            final cardWidth =
+                (constraints.maxWidth - 28 - (16 * (columns - 1))) / columns;
 
-                return _EventTile(
-                  event: event,
-                  imageUrl: _eventImage(event),
-                  variant: section == 'Upcoming'
-                      ? (index == 0 ? 'next' : 'row')
-                      : (index == 0 ? 'last' : 'row'),
-                  start: _eventStart(event),
-                  end: _eventEnd(event),
-                  hasTime: _hasTime(event),
-                  onOpen: _openUrl,
-                  onCalendar: () => _calendar(event),
+            return Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              children: events.asMap().entries.map((entry) {
+                final index = entry.key;
+                final event = entry.value;
+
+                return SizedBox(
+                  width: cardWidth,
+                  child: _EventTile(
+                    event: event,
+                    imageUrl: _eventImage(event),
+                    variant: section == 'Upcoming'
+                        ? (index == 0 ? 'next' : 'row')
+                        : (index == 0 ? 'last' : 'row'),
+                    start: _eventStart(event),
+                    end: _eventEnd(event),
+                    hasTime: _hasTime(event),
+                    onOpen: _openUrl,
+                    onCalendar: () => _calendar(event),
+                  ),
                 );
-              },
+              }).toList(),
             );
           }
 
@@ -1101,20 +1190,23 @@ class _EventTileState extends State<_EventTile> {
     final attendees =
         int.tryParse((widget.event['attendees'] ?? 0).toString()) ?? 0;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: dark ? const Color(0xFF24105F) : Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        border: Border.all(color: last ? const Color(0xFFD9CDF7) : _line),
-        boxShadow: [
-          BoxShadow(
-            color: _deepPurple.withValues(alpha: .08),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: SingleChildScrollView(
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      alignment: Alignment.topCenter,
+      child: Container(
+        decoration: BoxDecoration(
+          color: dark ? const Color(0xFF24105F) : Colors.white,
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(color: last ? const Color(0xFFD9CDF7) : _line),
+          boxShadow: [
+            BoxShadow(
+              color: _deepPurple.withValues(alpha: .08),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

@@ -169,43 +169,133 @@ class _MembershipPageState extends State<MembershipPage> {
       appBar: const AppHeader(),
       bottomNavigationBar: const BottomNav(isStaff: false),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 30),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 680),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _backButton(),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWeb = constraints.maxWidth >= 900;
 
-                  const SizedBox(height: 22),
+            // WEB / DESKTOP LAYOUT
+            if (isWeb) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 40,
+                  vertical: 28,
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1250),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _backButton(),
 
-                  _buildHero(heading),
+                        const SizedBox(height: 28),
 
-                  const SizedBox(height: 22),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // LEFT SIDE: MEMBERSHIP DETAILS
+                            Expanded(
+                              flex: 11,
+                              child: Padding(
+                                padding: const EdgeInsets.only(right: 40),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildHero(heading),
 
-                  _buildMembershipSelector(),
+                                    const SizedBox(height: 28),
 
-                  const SizedBox(height: 16),
+                                    _buildMembershipSelector(),
 
-                  _buildMembershipDescription(),
+                                    const SizedBox(height: 18),
 
-                  const SizedBox(height: 20),
+                                    _buildMembershipDescription(),
 
-                  _buildFormCard(),
+                                    const SizedBox(height: 28),
 
-                  const SizedBox(height: 20),
+                                    _buildBenefits(),
 
-                  _buildBenefits(),
+                                    const SizedBox(height: 24),
 
-                  const SizedBox(height: 20),
+                                    _buildBottomNote(),
+                                  ],
+                                ),
+                              ),
+                            ),
 
-                  _buildBottomNote(),
-                ],
+                            // RIGHT SIDE: APPLICATION FORM
+                            Expanded(
+                              flex: 9,
+                              child: Container(
+                                padding: const EdgeInsets.all(24),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(24),
+                                  border: Border.all(
+                                    color: const Color(0xFFE7E1FA),
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.04,
+                                      ),
+                                      blurRadius: 30,
+                                      offset: const Offset(0, 10),
+                                    ),
+                                  ],
+                                ),
+                                child: _buildFormCard(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            // MOBILE / TABLET LAYOUT
+            return SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(18, 16, 18, 30),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 680),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _backButton(),
+
+                      const SizedBox(height: 22),
+
+                      _buildHero(heading),
+
+                      const SizedBox(height: 22),
+
+                      _buildMembershipSelector(),
+
+                      const SizedBox(height: 16),
+
+                      _buildMembershipDescription(),
+
+                      const SizedBox(height: 20),
+
+                      _buildFormCard(),
+
+                      const SizedBox(height: 20),
+
+                      _buildBenefits(),
+
+                      const SizedBox(height: 20),
+
+                      _buildBottomNote(),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
