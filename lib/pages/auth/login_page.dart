@@ -208,7 +208,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     final lead = _nextRoute.startsWith('/profile')
         ? 'Sign in to see your profile.'
-        : 'Sign in with your member credentials to view the directory.';
+        : 'Please sign in to continue to ILYF Connect.';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3EFFC),
@@ -322,10 +322,10 @@ class _LoginPageState extends State<LoginPage> {
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.lock_outline, color: _gold, size: 15),
+                Icon(Icons.login, color: _gold, size: 15),
                 SizedBox(width: 7),
                 Text(
-                  'Members only',
+                  'Welcome to ILYF',
                   style: TextStyle(
                     color: Color(0xFFFFF1C2),
                     fontSize: 13,

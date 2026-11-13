@@ -1823,7 +1823,7 @@ class _ProfilePageState extends State<ProfilePage> {
   );
 
   Widget _offersCard() => _card(
-    'Your offers',
+    'Your listings',
     Icons.local_offer_outlined,
     Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1832,7 +1832,7 @@ class _ProfilePageState extends State<ProfilePage> {
           const Padding(
             padding: EdgeInsets.only(bottom: 12),
             child: Text(
-              'You have not created an offer yet.',
+              'You have not created an listing yet.',
               style: TextStyle(color: muted),
             ),
           ),
@@ -1924,7 +1924,7 @@ class _ProfilePageState extends State<ProfilePage> {
               onPressed: _offerBusy ? null : _startOfferCreate,
               style: FilledButton.styleFrom(backgroundColor: purple),
               icon: const Icon(Icons.add),
-              label: const Text('Create offer'),
+              label: const Text('Create Listing'),
             ),
           ),
       ],

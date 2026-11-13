@@ -29,7 +29,7 @@ class _OffersPageState extends State<OffersPage> {
   String? _error;
   List<Map<String, dynamic>> _offers = [];
   String _query = '';
-  String _filter = 'All offers';
+  String _filter = 'All Listings';
 
   final Set<String> _liked = {};
   final Set<String> _saved = {};
@@ -40,7 +40,7 @@ class _OffersPageState extends State<OffersPage> {
   }
 
   final List<String> _filters = [
-    'All offers',
+    'All Listings',
     'Services',
     'Food & Events',
     'Home & Living',
@@ -345,7 +345,7 @@ class _OffersPageState extends State<OffersPage> {
       ]);
 
       final matchesFilter =
-          _filter == 'All offers' || _categoryBucket(category) == _filter;
+          _filter == 'All Listings' || _categoryBucket(category) == _filter;
 
       final searchable =
           '${_title(offer)} ${_description(offer)} $category $author $role $location'
@@ -704,6 +704,24 @@ class _OffersPageState extends State<OffersPage> {
                         ? 2
                         : 1;
 
+                    // MOBILE: Cards take only the height they need.
+                    if (crossAxisCount == 1) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: List.generate(
+                          _filteredOffers.length,
+                          (index) => Padding(
+                            padding: const EdgeInsets.only(bottom: 18),
+                            child: _buildOfferCard(
+                              _filteredOffers[index],
+                              index,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
+
+                    // WEB / TABLET: Equal-sized cards.
                     return GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
@@ -713,11 +731,7 @@ class _OffersPageState extends State<OffersPage> {
                         crossAxisCount: crossAxisCount,
                         crossAxisSpacing: 18,
                         mainAxisSpacing: 18,
-                        mainAxisExtent: crossAxisCount == 3
-                            ? 420
-                            : crossAxisCount == 2
-                            ? 480
-                            : 4,
+                        mainAxisExtent: crossAxisCount == 3 ? 390 : 410,
                       ),
                       itemBuilder: (context, index) {
                         return _buildOfferCard(_filteredOffers[index], index);
@@ -725,6 +739,7 @@ class _OffersPageState extends State<OffersPage> {
                     );
                   },
                 ),
+
               const SizedBox(height: 5),
               _buildCommunityNote(),
             ],
@@ -919,6 +934,87 @@ class _OffersPageState extends State<OffersPage> {
           borderSide: const BorderSide(color: Color(0xFFB79BFA)),
         ),
       ),
+    );
+  }
+
+  void _showOfferDetails(String title, String description) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Padding(
+              padding: const EdgeInsets.all(22),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.sell_rounded, color: _purple),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text(
+                          'Offer details',
+                          style: TextStyle(
+                            color: _ink,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(dialogContext),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  const Divider(color: _border),
+                  const SizedBox(height: 10),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: _ink,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: Text(
+                        description,
+                        style: const TextStyle(
+                          color: _muted,
+                          fontSize: 14,
+                          height: 1.7,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      style: FilledButton.styleFrom(backgroundColor: _purple),
+                      child: const Text(
+                        'Close',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1228,7 +1324,7 @@ class _OffersPageState extends State<OffersPage> {
                 const SizedBox(height: 8),
                 Text(
                   description,
-                  maxLines: 3,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: _muted,
@@ -1236,6 +1332,32 @@ class _OffersPageState extends State<OffersPage> {
                     height: 1.6,
                   ),
                 ),
+
+                if (description.length > 100)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      onPressed: () {
+                        _showOfferDetails(title, description);
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 0,
+                          vertical: 4,
+                        ),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text(
+                        'View more →',
+                        style: TextStyle(
+                          color: _purple,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
                 if (price.isNotEmpty ||
                     originalPrice.isNotEmpty ||
                     validUntil.isNotEmpty) ...[
@@ -1515,7 +1637,7 @@ class _OffersPageState extends State<OffersPage> {
   }
 
   Widget _buildEmpty() {
-    final filtered = _query.isNotEmpty || _filter != 'All offers';
+    final filtered = _query.isNotEmpty || _filter != 'All Listings';
 
     return Container(
       width: double.infinity,
@@ -1565,14 +1687,14 @@ class _OffersPageState extends State<OffersPage> {
               if (filtered) {
                 setState(() {
                   _query = '';
-                  _filter = 'All offers';
+                  _filter = 'All Listings';
                 });
               } else {
                 context.go('/profile');
               }
             },
             child: Text(
-              filtered ? 'Clear filters' : 'Add an offer from your profile',
+              filtered ? 'Clear filters' : 'Add an listing from your profile',
             ),
           ),
         ],
