@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../components/app_header.dart';
 import '../../components/bottom_nav.dart';
 import '../../core/config/api_config.dart';
+import '../../main.dart';
 
 // API: GET /api/businesses/{id}
 class MemberCardPage extends StatefulWidget {
@@ -281,7 +282,7 @@ class _MemberCardPageState extends State<MemberCardPage> {
             ? _buildError()
             : _buildDetails(listing, type, imageUrl),
       ),
-      bottomNavigationBar: const BottomNav(isStaff: false),
+      bottomNavigationBar: BottomNav(isStaff: authService.isStaff),
     );
   }
 

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../members/membership_required_page.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../components/app_header.dart';
 import '../../components/bottom_nav.dart';
@@ -121,7 +122,7 @@ class _NewsPageState extends State<NewsPage> {
       var result = feed;
       if (_staff) {
         try {
-          final mineResponse = await _dio.get('/news');
+          final mineResponse = await _dio.get('/me/news');
           final byId = <String, Map<String, dynamic>>{};
           for (final item in [...feed, ..._asRows(mineResponse.data)]) {
             final id = _id(item);
@@ -185,13 +186,55 @@ class _NewsPageState extends State<NewsPage> {
     if (ok != true) return;
     setState(() => _busy = true);
     try {
-      await _dio.delete('/news/$id');
+      await _dio.delete('/me/news/$id');
       await _loadNews();
       _snack('News removed.');
     } on DioException catch (e) {
       _snack(_error(e, 'Could not remove this news item.'));
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _deleteEvent(Map<String, dynamic> event) async {
+    final id = _id(event);
+    if (id.isEmpty) return;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove event'),
+        content: Text('Do you want to remove "${_title(event)}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true) return;
+
+    setState(() => _busy = true);
+
+    try {
+      // Confirm the endpoint against your Events Swagger documentation.
+      await _dio.delete('/me/events/$id');
+
+      await _loadEvents();
+      _snack('Event removed.');
+    } on DioException catch (e) {
+      _snack(_error(e, 'Could not remove this event.'));
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
     }
   }
 
@@ -343,11 +386,19 @@ class _NewsPageState extends State<NewsPage> {
       ),
       body: SafeArea(
         top: false,
-        child: Column(
-          children: [
-            _hero(),
-            _tabBar(),
-            Expanded(child: _tab == 0 ? _newsBody() : _eventsBody()),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            // Admin hero section
+            SliverToBoxAdapter(child: _hero()),
+
+            // News and Events tabs
+            SliverToBoxAdapter(child: _tabBar()),
+
+            // Scrollable page content
+            SliverToBoxAdapter(
+              child: _tab == 0 ? _newsBodyContent() : _eventsBodyContent(),
+            ),
           ],
         ),
       ),
@@ -355,27 +406,301 @@ class _NewsPageState extends State<NewsPage> {
     );
   }
 
-  Widget _hero() => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        if (_staff)
-          FilledButton.icon(
-            onPressed: () =>
-                context.go(_tab == 1 ? '/events/new' : '/news/new'),
-            icon: const Icon(Icons.add, size: 17),
-            label: Text(_tab == 1 ? 'Add event' : 'Add news'),
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: _deepPurple,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+  Widget _hero() {
+    final isDesktop = kIsWeb && MediaQuery.of(context).size.width >= 900;
+
+    if (!_staff || !isDesktop) {
+      return const SizedBox.shrink();
+    }
+
+    final isEventTab = _tab == 1;
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [const Color(0xFFF9F6FF), const Color(0xFFF0E9FF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE6D9FF)),
+        boxShadow: [
+          BoxShadow(
+            color: _deepPurple.withOpacity(0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'ILYF COMMUNITY',
+                  style: TextStyle(
+                    color: _deepPurple,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  isEventTab
+                      ? 'Manage community events'
+                      : 'Manage community news',
+                  style: const TextStyle(
+                    color: Color(0xFF1A1433),
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  isEventTab
+                      ? 'Create and manage events for your ILYF community.'
+                      : 'Share announcements and the latest updates with your community.',
+                  style: const TextStyle(
+                    color: Color(0xFF756B91),
+                    fontSize: 15,
+                  ),
+                ),
+              ],
             ),
           ),
-      ],
-    ),
-  );
+          const SizedBox(width: 24),
+          FilledButton.icon(
+            onPressed: () =>
+                context.go(isEventTab ? '/events/new' : '/news/new'),
+            icon: const Icon(Icons.add_rounded, size: 23),
+            label: Text(isEventTab ? 'Add Event' : 'Add News'),
+            style: FilledButton.styleFrom(
+              backgroundColor: _deepPurple,
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shadowColor: _deepPurple.withOpacity(0.25),
+              minimumSize: const Size(190, 58),
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
+              textStyle: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _newsBodyContent() {
+    if (_newsLoading && _news.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          children: [_NewsSkeleton(), SizedBox(height: 16), _NewsSkeleton()],
+        ),
+      );
+    }
+
+    if (_newsError != null && _news.isEmpty) {
+      return _errorStateContent(_newsError!, _loadNews);
+    }
+
+    if (_news.isEmpty) {
+      return _emptyStateContent(
+        Icons.article_outlined,
+        'No news yet',
+        _staff
+            ? 'Add one with Add news.'
+            : 'New announcements will show up here.',
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 1100
+            ? 3
+            : constraints.maxWidth >= 650
+            ? 2
+            : 1;
+
+        final cardWidth =
+            (constraints.maxWidth - 28 - (16 * (columns - 1))) / columns;
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(14, 4, 14, 24),
+          child: Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            children: _news.map((item) {
+              return SizedBox(
+                width: cardWidth,
+                child: AnimatedSize(
+                  duration: const Duration(milliseconds: 250),
+                  child: _newsCard(item),
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _eventsBodyContent() {
+    if (_eventsLoading && _events.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          children: [_EventSkeleton(), SizedBox(height: 12), _EventSkeleton()],
+        ),
+      );
+    }
+
+    if (_eventsError != null && _events.isEmpty) {
+      return _errorStateContent(_eventsError!, _loadEvents);
+    }
+
+    if (_events.isEmpty) {
+      return _emptyStateContent(
+        Icons.calendar_month_outlined,
+        'No events yet',
+        _staff
+            ? 'Add one with Add event.'
+            : 'Upcoming events will show up here.',
+      );
+    }
+
+    final upcoming = _upcoming;
+    final past = _past;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 1100
+            ? 3
+            : constraints.maxWidth >= 650
+            ? 2
+            : 1;
+
+        Widget eventGrid(List<Map<String, dynamic>> events, String section) {
+          if (events.isEmpty) {
+            return _NoEvents(
+              section == 'Upcoming'
+                  ? 'No upcoming events right now.'
+                  : 'No past events yet.',
+            );
+          }
+
+          final cardWidth =
+              (constraints.maxWidth - 28 - (16 * (columns - 1))) / columns;
+
+          return Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            children: events.asMap().entries.map((entry) {
+              final index = entry.key;
+              final event = entry.value;
+
+              return SizedBox(
+                width: cardWidth,
+
+                child: _EventTile(
+                  event: event,
+                  imageUrl: _eventImage(event),
+                  variant: section == 'Upcoming'
+                      ? (index == 0 ? 'next' : 'row')
+                      : (index == 0 ? 'last' : 'row'),
+                  start: _eventStart(event),
+                  end: _eventEnd(event),
+                  hasTime: _hasTime(event),
+                  onOpen: _openUrl,
+                  onCalendar: () => _calendar(event),
+
+                  isStaff: _staff && !_busy,
+                  onEdit: () {
+                    final id = _id(event);
+                    if (id.isNotEmpty) {
+                      context.go('/events/$id/edit');
+                    }
+                  },
+                  onDelete: () => _deleteEvent(event),
+                ),
+              );
+            }).toList(),
+          );
+        }
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(14, 4, 14, 25),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sectionTitle('Upcoming'),
+              eventGrid(upcoming, 'Upcoming'),
+              const SizedBox(height: 20),
+              _sectionTitle('Past events'),
+              eventGrid(past, 'Past events'),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _emptyStateContent(IconData icon, String title, String subtitle) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 60),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 25),
+        padding: const EdgeInsets.all(28),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(color: _line),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: _violet, size: 40),
+            const SizedBox(height: 15),
+            Text(title, style: const TextStyle(fontSize: 25, color: _ink)),
+            const SizedBox(height: 7),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _muted, height: 1.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _errorStateContent(String message, Future<void> Function() retry) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFF9F2446)),
+          ),
+          const SizedBox(height: 14),
+          FilledButton(onPressed: retry, child: const Text('Try again')),
+        ],
+      ),
+    );
+  }
 
   Widget _tabBar() => Padding(
     padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
@@ -925,6 +1250,16 @@ class _NewsPageState extends State<NewsPage> {
                     hasTime: _hasTime(event),
                     onOpen: _openUrl,
                     onCalendar: () => _calendar(event),
+
+                    // Admin controls
+                    isStaff: _staff && !_busy,
+                    onEdit: () {
+                      final id = _id(event);
+                      if (id.isNotEmpty) {
+                        context.go('/events/$id/edit');
+                      }
+                    },
+                    onDelete: () => _deleteEvent(event),
                   ),
                 );
               }).toList(),
@@ -1066,6 +1401,9 @@ class _EventTile extends StatefulWidget {
     required this.hasTime,
     required this.onOpen,
     required this.onCalendar,
+    required this.isStaff,
+    required this.onEdit,
+    required this.onDelete,
   });
 
   final Map<String, dynamic> event;
@@ -1076,6 +1414,11 @@ class _EventTile extends StatefulWidget {
   final bool hasTime;
   final ValueChanged<String> onOpen;
   final VoidCallback onCalendar;
+
+  // Admin controls
+  final bool isStaff;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   State<_EventTile> createState() => _EventTileState();
@@ -1289,6 +1632,33 @@ class _EventTileState extends State<_EventTile> {
                         ],
                       ),
                     ),
+
+                    if (widget.isStaff) ...[
+                      IconButton(
+                        tooltip: 'Edit event',
+                        onPressed: widget.onEdit,
+                        style: IconButton.styleFrom(
+                          backgroundColor: Colors.white.withOpacity(0.14),
+                          foregroundColor: Colors.white,
+                          shape: const CircleBorder(),
+                          padding: const EdgeInsets.all(10),
+                        ),
+                        icon: const Icon(
+                          Icons.edit_outlined,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Delete event',
+                        onPressed: widget.onDelete,
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.red,
+                          size: 20,
+                        ),
+                      ),
+                    ],
                     if (widget.variant == 'row')
                       Icon(
                         _expanded

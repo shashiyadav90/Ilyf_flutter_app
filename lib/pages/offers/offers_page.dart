@@ -33,7 +33,11 @@ class _OffersPageState extends State<OffersPage> {
 
   final Set<String> _liked = {};
   final Set<String> _saved = {};
+
   final Map<String, List<Map<String, String>>> _comments = {};
+
+  List<Map<String, dynamic>> _myOffers = [];
+  List<Map<String, dynamic>> _savedOffers = [];
 
   bool get _hasFullAccess {
     return authService.member?.hasMembersDirectoryAccess ?? false;
@@ -51,7 +55,7 @@ class _OffersPageState extends State<OffersPage> {
   @override
   void initState() {
     super.initState();
-    _fetchOffers();
+    _loadListings();
   }
 
   Future<void> _fetchOffers() async {
@@ -145,6 +149,16 @@ class _OffersPageState extends State<OffersPage> {
         _loading = false;
         _error = null;
       });
+
+      for (final offer in fetchedOffers) {
+        debugPrint('========== LIKE RESTORE CHECK ==========');
+        debugPrint('OFFER ID: ${_id(offer, 0)}');
+        debugPrint('LIKES: ${offer['likes']}');
+        debugPrint('LIKES COUNT: ${offer['likesCount']}');
+        debugPrint('LIKE COUNT: ${offer['likeCount']}');
+        debugPrint('IS LIKED: ${offer['isLiked']}');
+        debugPrint('LIKED BY ME: ${offer['likedByMe']}');
+      }
     } on DioException catch (e) {
       debugPrint('OFFERS API ERROR: ${e.message}');
       debugPrint('STATUS: ${e.response?.statusCode}');
@@ -174,6 +188,332 @@ class _OffersPageState extends State<OffersPage> {
         _error = e.toString();
       });
     }
+  }
+
+  List<Map<String, dynamic>> _parseOfferList(dynamic data) {
+    if (data is String) {
+      data = jsonDecode(data);
+    }
+
+    dynamic rows;
+
+    if (data is List) {
+      rows = data;
+    } else if (data is Map) {
+      if (data['offers'] is List) {
+        rows = data['offers'];
+      } else if (data['savedOffers'] is List) {
+        rows = data['savedOffers'];
+      } else if (data['results'] is List) {
+        rows = data['results'];
+      } else if (data['items'] is List) {
+        rows = data['items'];
+      } else if (data['data'] is List) {
+        rows = data['data'];
+      } else if (data['data'] is Map) {
+        final nested = data['data'];
+
+        rows =
+            nested['offers'] ??
+            nested['savedOffers'] ??
+            nested['items'] ??
+            nested['results'] ??
+            [];
+      } else {
+        rows = [];
+      }
+    } else {
+      rows = [];
+    }
+
+    if (rows is! List) return [];
+
+    return rows
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+  }
+
+  Future<void> _fetchMyOffers() async {
+    try {
+      final response = await ApiConfig.dio.get('/me/offers');
+      debugPrint('========== SAVED OFFERS API ==========');
+      debugPrint('STATUS: ${response.statusCode}');
+      debugPrint('SAVED OFFERS RESPONSE: ${response.data}');
+
+      final offers = _parseOfferList(response.data);
+
+      if (!mounted) return;
+
+      setState(() {
+        _myOffers = offers;
+      });
+
+      debugPrint('MY LISTINGS: ${_myOffers.length}');
+    } on DioException catch (e) {
+      debugPrint('MY LISTINGS ERROR: ${e.response?.data}');
+    }
+  }
+
+  Future<void> _fetchSavedOffers() async {
+    try {
+      final response = await ApiConfig.dio.get('/me/saved-offers');
+
+      debugPrint('========== SAVED OFFERS API ==========');
+      debugPrint('STATUS: ${response.statusCode}');
+      debugPrint('SAVED OFFERS RESPONSE: ${response.data}');
+
+      final offers = _parseOfferList(response.data);
+
+      final savedIds = <String>{};
+
+      for (final item in offers) {
+        final nestedOffer = item['offer'];
+
+        if (nestedOffer is Map) {
+          final offer = Map<String, dynamic>.from(nestedOffer);
+          final id = _id(offer, 0);
+
+          if (!id.startsWith('offer-')) {
+            savedIds.add(id);
+          }
+        } else {
+          final id = _id(item, 0);
+
+          if (!id.startsWith('offer-')) {
+            savedIds.add(id);
+          }
+        }
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _savedOffers = offers;
+        _saved
+          ..clear()
+          ..addAll(savedIds);
+      });
+
+      debugPrint('RESTORED SAVED IDS: $_saved');
+    } on DioException catch (e) {
+      debugPrint('SAVED LISTINGS ERROR: ${e.response?.data}');
+    }
+  }
+
+  Future<void> _toggleSaveOffer(String id) async {
+    final isSaved = _saved.contains(id);
+
+    try {
+      if (isSaved) {
+        await ApiConfig.dio.delete('/offers/$id/save');
+      } else {
+        await ApiConfig.dio.post('/offers/$id/save');
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        if (isSaved) {
+          _saved.remove(id);
+          _savedOffers.removeWhere((offer) => _id(offer, 0) == id);
+        } else {
+          _saved.add(id);
+        }
+      });
+
+      _showMessage(isSaved ? 'Removed from saved listings.' : 'Listing saved.');
+    } on DioException catch (e) {
+      debugPrint('SAVE API ERROR: ${e.response?.data}');
+      _showMessage('Unable to update saved listing.');
+    }
+  }
+
+  Future<void> _toggleLikeOffer(String id) async {
+    final isLiked = _liked.contains(id);
+
+    try {
+      if (isLiked) {
+        await ApiConfig.dio.delete('/offers/$id/like');
+      } else {
+        await ApiConfig.dio.post('/offers/$id/like');
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        if (isLiked) {
+          _liked.remove(id);
+        } else {
+          _liked.add(id);
+        }
+      });
+    } on DioException catch (e) {
+      debugPrint('LIKE API ERROR: ${e.response?.data}');
+      _showMessage('Unable to update like.');
+    }
+  }
+
+  Future<List<Map<String, String>>> _fetchOfferComments(String id) async {
+    try {
+      final response = await ApiConfig.dio.get('/offers/$id/comments');
+
+      dynamic data = response.data;
+
+      if (data is String) {
+        data = jsonDecode(data);
+      }
+
+      if (data is! Map) {
+        debugPrint('Unexpected comments response: $data');
+        return [];
+      }
+
+      final rows = data['comments'];
+
+      if (rows is! List) {
+        debugPrint('Comments list missing: $data');
+        return [];
+      }
+
+      debugPrint('TOTAL COMMENTS FROM API: ${data['totalComments']}');
+
+      return rows.whereType<Map>().map((comment) {
+        final member = comment['member'];
+
+        return <String, String>{
+          'name': member is Map
+              ? _first([member['fullName'], member['name']], 'ILYF Member')
+              : 'ILYF Member',
+          'text': _first([
+            comment['content'],
+            comment['text'],
+            comment['message'],
+          ]),
+          'photoUrl': member is Map ? _text(member['photoUrl']) : '',
+          'createdAt': _text(comment['createdAt']),
+        };
+      }).toList();
+    } on DioException catch (e) {
+      debugPrint('GET COMMENTS ERROR: ${e.response?.data}');
+      debugPrint('STATUS: ${e.response?.statusCode}');
+      _showMessage('Unable to load comments.');
+      return [];
+    }
+  }
+
+  Future<void> _fetchAllOfferComments() async {
+    if (_offers.isEmpty) return;
+
+    final results = await Future.wait(
+      _offers.map((offer) async {
+        final id = _id(offer, 0);
+
+        if (id.startsWith('offer-')) {
+          return MapEntry(id, <Map<String, String>>[]);
+        }
+
+        final comments = await _fetchOfferComments(id);
+        return MapEntry(id, comments);
+      }),
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      for (final result in results) {
+        _comments[result.key] = result.value;
+      }
+    });
+
+    debugPrint('ALL OFFER COMMENTS LOADED');
+  }
+
+  Future<bool> _postOfferComment(String id, String comment) async {
+    try {
+      await ApiConfig.dio.post(
+        '/offers/$id/comments',
+        data: {'content': comment.trim()},
+      );
+
+      return true;
+    } on DioException catch (e) {
+      debugPrint('POST COMMENT ERROR: ${e.response?.data}');
+      debugPrint('STATUS CODE: ${e.response?.statusCode}');
+
+      _showMessage(
+        e.response?.data is Map
+            ? (e.response?.data['message']?.toString() ??
+                  'Unable to post comment.')
+            : 'Unable to post comment.',
+      );
+
+      return false;
+    }
+  }
+
+  Future<bool> _createOffer(Map<String, dynamic> payload) async {
+    try {
+      await ApiConfig.dio.post('/me/offers', data: payload);
+
+      await _loadListings();
+
+      _showMessage('Listing created successfully.');
+      return true;
+    } on DioException catch (e) {
+      debugPrint('CREATE LISTING ERROR: ${e.response?.data}');
+      _showMessage('Unable to create listing.');
+      return false;
+    }
+  }
+
+  Future<bool> _updateOffer(String id, Map<String, dynamic> payload) async {
+    try {
+      await ApiConfig.dio.patch('/me/offers/$id', data: payload);
+
+      await _loadListings();
+
+      _showMessage('Listing updated successfully.');
+      return true;
+    } on DioException catch (e) {
+      debugPrint('UPDATE LISTING ERROR: ${e.response?.data}');
+      _showMessage('Unable to update listing.');
+      return false;
+    }
+  }
+
+  Future<bool> _deleteOffer(String id) async {
+    try {
+      await ApiConfig.dio.delete('/me/offers/$id');
+
+      if (!mounted) return true;
+
+      setState(() {
+        _offers.removeWhere((offer) => _id(offer, 0) == id);
+        _myOffers.removeWhere((offer) => _id(offer, 0) == id);
+      });
+
+      _showMessage('Listing deleted successfully.');
+      return true;
+    } on DioException catch (e) {
+      debugPrint('DELETE LISTING ERROR: ${e.response?.data}');
+      _showMessage('Unable to delete listing.');
+      return false;
+    }
+  }
+
+  Future<void> _loadListings() async {
+    await _fetchOffers();
+
+    if (!mounted || !_hasFullAccess || !authService.isLoggedIn) {
+      return;
+    }
+
+    await Future.wait([
+      _fetchMyOffers(),
+      _fetchSavedOffers(),
+      _fetchAllOfferComments(),
+    ]);
   }
 
   String _text(dynamic value, [String fallback = '']) {
@@ -381,213 +721,290 @@ class _OffersPageState extends State<OffersPage> {
     if (mounted) _showMessage('Offer details copied to clipboard.');
   }
 
-  void _showComments(Map<String, dynamic> offer, String id) {
-    final author = _author(offer);
-    final rawComments = offer['comments'];
-    final comments = rawComments is List
-        ? rawComments.whereType<Map>().map((c) {
-            return <String, String>{
-              'name': _first([
-                c['name'],
-                (c['user'] is Map) ? c['user']['name'] : null,
-              ], 'ILYF Member'),
-              'text': _first([c['text'], c['message'], c['content']]),
-            };
-          }).toList()
-        : <Map<String, String>>[];
+  Future<void> _showComments(Map<String, dynamic> offer, String id) async {
+    final existing = List<Map<String, String>>.from(_comments[id] ?? []);
 
-    final existing = _comments[id] ?? comments;
+    if (!mounted) return;
+
+    setState(() {
+      _comments[id] = existing;
+    });
+
     final controller = TextEditingController();
+    bool sheetOpen = true;
+    bool sending = false;
 
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          return Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).viewInsets.bottom,
-            ),
-            child: Container(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * .75,
-              ),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-              ),
-              child: Column(
-                children: [
-                  const SizedBox(height: 12),
-                  Container(
-                    width: 42,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: _border,
-                      borderRadius: BorderRadius.circular(5),
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        backgroundColor: Colors.transparent,
+        builder: (sheetContext) => StatefulBuilder(
+          builder: (context, setSheetState) {
+            final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+
+            return Padding(
+              padding: EdgeInsets.only(bottom: keyboardHeight),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * .75,
+                ),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(26),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'COMMUNITY CONVERSATION',
-                                style: TextStyle(
-                                  color: _purple,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                              SizedBox(height: 5),
-                              Text(
-                                'Comments',
-                                style: TextStyle(
-                                  color: _ink,
-                                  fontSize: 23,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ],
-                          ),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 12),
+
+                      Container(
+                        width: 42,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: _border,
+                          borderRadius: BorderRadius.circular(5),
                         ),
-                        IconButton(
-                          onPressed: () => Navigator.pop(sheetContext),
-                          icon: const Icon(Icons.close_rounded),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        _title(offer),
-                        style: const TextStyle(color: _muted, fontSize: 13),
                       ),
-                    ),
-                  ),
-                  const Divider(height: 25),
-                  Expanded(
-                    child: existing.isEmpty
-                        ? const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(24),
-                              child: Text(
-                                'Start the conversation. Ask a question or share your thoughts.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: _muted),
-                              ),
-                            ),
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            itemCount: existing.length,
-                            itemBuilder: (context, index) {
-                              final comment = existing[index];
-                              return ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: CircleAvatar(
-                                  backgroundColor: const Color(0xFFF0E8FF),
-                                  child: Text(
-                                    _initials(comment['name'] ?? 'ILYF'),
-                                    style: const TextStyle(
+
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'COMMUNITY CONVERSATION',
+                                    style: TextStyle(
                                       color: _purple,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
+                                  SizedBox(height: 5),
+                                  Text(
+                                    'Comments',
+                                    style: TextStyle(
+                                      color: _ink,
+                                      fontSize: 23,
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
-                                ),
-                                title: Text(
-                                  comment['name'] ?? 'ILYF Member',
-                                  style: const TextStyle(
-                                    color: _ink,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                subtitle: Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Text(comment['text'] ?? ''),
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: controller,
-                            maxLength: 500,
-                            decoration: InputDecoration(
-                              counterText: '',
-                              hintText: 'Write a comment…',
-                              filled: true,
-                              fillColor: _background,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 13,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(13),
-                                borderSide: const BorderSide(color: _border),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(13),
-                                borderSide: const BorderSide(color: _border),
+                                ],
                               ),
                             ),
+
+                            IconButton(
+                              tooltip: 'Close comments',
+                              onPressed: () {
+                                FocusManager.instance.primaryFocus?.unfocus();
+                                Navigator.of(sheetContext).pop();
+                              },
+                              icon: const Icon(Icons.close_rounded),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            _title(offer),
+                            style: const TextStyle(color: _muted, fontSize: 13),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        IconButton.filled(
-                          style: IconButton.styleFrom(
-                            backgroundColor: _purple,
-                            foregroundColor: Colors.white,
-                          ),
-                          onPressed: () {
-                            final text = controller.text.trim();
-                            if (text.isEmpty) return;
+                      ),
 
-                            final comment = {'name': 'You', 'text': text};
+                      const Divider(height: 25),
 
-                            setState(() {
-                              _comments[id] = [...existing, comment];
-                            });
-                            setSheetState(() {
-                              existing.add(comment);
-                            });
-                            controller.clear();
-                            FocusScope.of(context).unfocus();
-                          },
-                          icon: const Icon(Icons.send_rounded),
+                      Expanded(
+                        child: existing.isEmpty
+                            ? const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.all(24),
+                                  child: Text(
+                                    'Start the conversation. Ask a question or share your thoughts.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(color: _muted),
+                                  ),
+                                ),
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                ),
+                                itemCount: existing.length,
+                                itemBuilder: (context, index) {
+                                  final comment = existing[index];
+
+                                  return ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    leading: CircleAvatar(
+                                      backgroundColor: const Color(0xFFF0E8FF),
+                                      child: Text(
+                                        _initials(comment['name'] ?? 'ILYF'),
+                                        style: const TextStyle(
+                                          color: _purple,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ),
+                                    title: Text(
+                                      comment['name'] ?? 'ILYF Member',
+                                      style: const TextStyle(
+                                        color: _ink,
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    subtitle: Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(comment['text'] ?? ''),
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: controller,
+                                maxLength: 500,
+                                decoration: InputDecoration(
+                                  counterText: '',
+                                  hintText: 'Write a comment…',
+                                  filled: true,
+                                  fillColor: _background,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 13,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(13),
+                                    borderSide: const BorderSide(
+                                      color: _border,
+                                    ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(13),
+                                    borderSide: const BorderSide(
+                                      color: _border,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            const SizedBox(width: 8),
+
+                            IconButton.filled(
+                              style: IconButton.styleFrom(
+                                backgroundColor: _purple,
+                                foregroundColor: Colors.white,
+                              ),
+                              onPressed: sending
+                                  ? null
+                                  : () async {
+                                      final commentText = controller.text
+                                          .trim();
+
+                                      if (commentText.isEmpty) return;
+
+                                      setSheetState(() {
+                                        sending = true;
+                                      });
+
+                                      try {
+                                        final success = await _postOfferComment(
+                                          id,
+                                          commentText,
+                                        );
+
+                                        if (!success ||
+                                            !mounted ||
+                                            !sheetOpen ||
+                                            !sheetContext.mounted) {
+                                          return;
+                                        }
+
+                                        final updatedComments =
+                                            await _fetchOfferComments(id);
+
+                                        if (!mounted ||
+                                            !sheetOpen ||
+                                            !sheetContext.mounted) {
+                                          return;
+                                        }
+
+                                        setSheetState(() {
+                                          existing
+                                            ..clear()
+                                            ..addAll(updatedComments);
+                                        });
+
+                                        setState(() {
+                                          _comments[id] = updatedComments;
+                                        });
+
+                                        controller.clear();
+
+                                        FocusManager.instance.primaryFocus
+                                            ?.unfocus();
+                                      } finally {
+                                        if (sheetOpen && sheetContext.mounted) {
+                                          setSheetState(() {
+                                            sending = false;
+                                          });
+                                        }
+                                      }
+                                    },
+                              icon: sending
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Icon(Icons.send_rounded),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          'Be respectful and keep the conversation helpful.',
+                          style: TextStyle(color: _muted, fontSize: 10),
+                        ),
+                      ),
+                    ],
                   ),
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      'Comments are currently stored locally in this screen.',
-                      style: TextStyle(color: _muted, fontSize: 10),
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          );
-        },
-      ),
-    ).whenComplete(controller.dispose);
+            );
+          },
+        ),
+      );
+    } finally {
+      sheetOpen = false;
+      FocusManager.instance.primaryFocus?.unfocus();
+      controller.dispose();
+    }
   }
 
   String _initials(String name) {
@@ -746,7 +1163,7 @@ class _OffersPageState extends State<OffersPage> {
           ],
         ),
       ),
-      bottomNavigationBar: const BottomNav(isStaff: false),
+      bottomNavigationBar: BottomNav(isStaff: authService.isStaff),
     );
   }
 
@@ -1066,11 +1483,14 @@ class _OffersPageState extends State<OffersPage> {
         offer['commentsCount'] ??
         offer['commentCount'] ??
         (offer['comments'] is List ? (offer['comments'] as List).length : 0);
-    final commentCount =
-        (rawComments is num
-            ? rawComments.toInt()
-            : int.tryParse('$rawComments') ?? 0) +
-        (_comments[id]?.length ?? 0);
+
+    final apiCommentCount = rawComments is num
+        ? rawComments.toInt()
+        : int.tryParse('$rawComments') ?? 0;
+
+    final commentCount = _comments.containsKey(id)
+        ? _comments[id]!.length
+        : apiCommentCount;
 
     return Container(
       clipBehavior: Clip.antiAlias,
@@ -1255,11 +1675,7 @@ class _OffersPageState extends State<OffersPage> {
                       tooltip: _saved.contains(id)
                           ? 'Unsave offer'
                           : 'Save offer',
-                      onPressed: () => setState(() {
-                        _saved.contains(id)
-                            ? _saved.remove(id)
-                            : _saved.add(id);
-                      }),
+                      onPressed: () => _toggleSaveOffer(id),
                       icon: Icon(
                         _saved.contains(id)
                             ? Icons.bookmark_rounded
@@ -1421,11 +1837,7 @@ class _OffersPageState extends State<OffersPage> {
                       color: _liked.contains(id)
                           ? const Color(0xFFEE4D87)
                           : _muted,
-                      onTap: () => setState(() {
-                        _liked.contains(id)
-                            ? _liked.remove(id)
-                            : _liked.add(id);
-                      }),
+                      onTap: () => _toggleLikeOffer(id),
                     ),
                     const SizedBox(width: 18),
                     _socialAction(

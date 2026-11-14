@@ -415,7 +415,7 @@ class _MembersPageState extends State<MembersPage> {
           ),
         ),
       ),
-      bottomNavigationBar: const BottomNav(isStaff: false),
+      bottomNavigationBar: BottomNav(isStaff: authService.isStaff),
     );
   }
 
@@ -471,23 +471,30 @@ class _MembersPageState extends State<MembersPage> {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 12),
+
             FilledButton.icon(
               onPressed: () => context.push('/admin/members/new'),
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('Add'),
+              icon: const Icon(Icons.add_rounded, size: 22),
+              label: const Text('Add Member'),
               style: FilledButton.styleFrom(
                 backgroundColor: purple,
                 foregroundColor: Colors.white,
+                elevation: 4,
+                shadowColor: purple.withOpacity(0.30),
+                minimumSize: const Size(190, 54),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
+                  horizontal: 28,
+                  vertical: 17,
                 ),
                 textStyle: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                  letterSpacing: 0.2,
                 ),
-                shape: const StadiumBorder(),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
             ),
           ],

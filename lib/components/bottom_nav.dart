@@ -20,10 +20,10 @@ class BottomNav extends StatelessWidget {
 
   static const List<_NavItem> _staffItems = [
     _NavItem('Admin', '/admin', Icons.admin_panel_settings_outlined),
+    //_NavItem('Overview', '/overview', Icons.dashboard_outlined),
     _NavItem('Members', '/members', Icons.groups_outlined),
     _NavItem('Enquiry', '/', Icons.chat_bubble_outline_rounded),
     _NavItem('Listings', '/offers', Icons.local_offer_outlined),
-    _NavItem('Overview', '/overview', Icons.dashboard_outlined),
     _NavItem('News', '/news', Icons.article_outlined),
   ];
 

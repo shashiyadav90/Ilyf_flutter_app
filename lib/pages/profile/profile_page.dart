@@ -1144,9 +1144,20 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _logout() async {
     try {
-      await ApiConfig.dio.post<dynamic>('/auth/logout');
-    } catch (_) {}
-    if (mounted) context.go('/');
+      await authService.logoutMember();
+
+      if (!mounted) return;
+
+      context.go('/login');
+    } catch (e) {
+      debugPrint('Logout error: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to log out. Please try again.')),
+      );
+    }
   }
 
   String get _nameValue => _s(_profile?['fullName']).isNotEmpty
@@ -1177,7 +1188,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Scaffold(
       backgroundColor: bg,
       appBar: const AppHeader(),
-      bottomNavigationBar: const BottomNav(isStaff: false),
+      bottomNavigationBar: BottomNav(isStaff: authService.isStaff),
       body: SafeArea(
         top: false,
         child: _loading

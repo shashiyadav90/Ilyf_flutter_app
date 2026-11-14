@@ -143,6 +143,8 @@ class AuthService extends ChangeNotifier {
   Future<void> logoutMember() async {
     try {
       await _api.logoutRemote();
+    } catch (e) {
+      debugPrint('LOGOUT API ERROR: $e');
     } finally {
       await clearSession();
     }

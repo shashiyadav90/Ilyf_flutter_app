@@ -15,6 +15,11 @@ import '../../pages/overview/overview_page.dart';
 import '../../pages/membership/membership_page.dart';
 import '../../pages/members/membership_required_page.dart';
 import '../../pages/admin/admin_home_page.dart';
+import '../../pages/admin/admin_chapters_page.dart';
+import '../../pages/admin/admin_chapter_form_page.dart';
+import '../../pages/admin/admin_member_form_page.dart';
+import '../../pages/admin/admin_event_form_page.dart';
+import '../../pages/admin/admin_news_form_page.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: RouteNames.chat,
@@ -49,40 +54,49 @@ final GoRouter appRouter = GoRouter(
     ),
     GoRoute(path: '/offers', builder: (context, state) => const OffersPage()),
     GoRoute(path: '/news', builder: (context, state) => const NewsPage()),
-    GoRoute(
-      path: '/news/new',
-      builder: (context, state) => const ComingSoonPage(title: 'Create News'),
-    ),
-    GoRoute(
-      path: '/news/:id/edit',
-      builder: (context, state) =>
-          ComingSoonPage(title: 'Edit News ${state.pathParameters['id']}'),
-    ),
     GoRoute(path: '/profile', builder: (context, state) => const ProfilePage()),
     GoRoute(path: '/admin', builder: (context, state) => const AdminHomePage()),
     GoRoute(
       path: '/admin/chapters',
-      builder: (context, state) =>
-          const ComingSoonPage(title: 'Admin Chapters'),
+      builder: (context, state) => const AdminChaptersPage(),
     ),
     GoRoute(
       path: '/admin/chapters/new',
-      builder: (context, state) =>
-          const ComingSoonPage(title: 'Create Chapter'),
+      builder: (context, state) => const AdminChapterFormPage(),
     ),
     GoRoute(
       path: '/admin/chapters/:id',
       builder: (context, state) =>
-          ComingSoonPage(title: 'Edit Chapter ${state.pathParameters['id']}'),
+          AdminChapterFormPage(id: state.pathParameters['id']),
     ),
     GoRoute(
       path: '/admin/members/new',
-      builder: (context, state) => const ComingSoonPage(title: 'Create Member'),
+      builder: (context, state) => AdminMemberFormPage(
+        chapterId: state.uri.queryParameters['chapterId'],
+      ),
     ),
     GoRoute(
-      path: '/admin/members/:id',
+      path: '/admin/members/:id/edit',
       builder: (context, state) =>
-          ComingSoonPage(title: 'Edit Member ${state.pathParameters['id']}'),
+          AdminMemberFormPage(id: state.pathParameters['id']),
+    ),
+    GoRoute(
+      path: '/events/new',
+      builder: (context, state) => const AdminEventFormPage(),
+    ),
+    GoRoute(
+      path: '/events/:id/edit',
+      builder: (context, state) =>
+          AdminEventFormPage(id: state.pathParameters['id']),
+    ),
+    GoRoute(
+      path: '/news/new',
+      builder: (context, state) => const AdminNewsFormPage(),
+    ),
+    GoRoute(
+      path: '/news/:id/edit',
+      builder: (context, state) =>
+          AdminNewsFormPage(id: state.pathParameters['id']),
     ),
     GoRoute(path: '/events', redirect: (context, state) => '/news'),
     GoRoute(path: '/admin/members', redirect: (context, state) => '/members'),

@@ -736,7 +736,7 @@ class _OverviewPageState extends State<OverviewPage> {
     return Scaffold(
       backgroundColor: background,
       appBar: const AppHeader(),
-      bottomNavigationBar: const BottomNav(isStaff: false),
+      bottomNavigationBar: BottomNav(isStaff: authService.isStaff),
       body: SafeArea(
         top: false,
         child: _loading

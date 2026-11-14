@@ -6,6 +6,7 @@ import '../../components/app_header.dart';
 import '../../components/bottom_nav.dart';
 import '../../data/repositories/inquiry_chat_repository.dart';
 import '../chat/ilo_mascot.dart';
+import '../../main.dart';
 
 const Color _ink = Color(0xFF211C45);
 const Color _inkSecondary = Color(0xFF6A6685);
@@ -282,7 +283,7 @@ class _ChatPageState extends State<ChatPage> {
       resizeToAvoidBottomInset: true,
       appBar: const AppHeader(),
       bottomNavigationBar: widget.showBottomNav
-          ? const BottomNav(isStaff: false)
+          ? BottomNav(isStaff: authService.isStaff)
           : null,
       body: Container(
         width: double.infinity,

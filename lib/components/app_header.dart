@@ -53,7 +53,6 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                 const SizedBox(width: 4),
               ],
 
-              // ILYF logo
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
                 child: Image.asset(
@@ -66,7 +65,6 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
 
               const SizedBox(width: 12),
 
-              // Header title and subtitle
               Expanded(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -98,7 +96,6 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                 ),
               ),
 
-              // Profile button on top-right
               if (trailing != null)
                 trailing!
               else
