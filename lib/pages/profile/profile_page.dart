@@ -43,7 +43,6 @@ class _ProfilePageState extends State<ProfilePage> {
   Map<String, dynamic>? _profile;
   List<Map<String, dynamic>> _offers = [];
 
-  // Editable offer state.
   final _offerTitle = TextEditingController();
   final _offerDescription = TextEditingController();
   DateTime? _offerStartDate;
@@ -54,7 +53,6 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _offerEditorOpen = false;
   bool _offerBusy = false;
 
-  // Profile media state.
   List<Map<String, dynamic>> _images = [];
   List<Map<String, dynamic>> _documents = [];
   List<Map<String, dynamic>> _videos = [];
@@ -953,7 +951,6 @@ class _ProfilePageState extends State<ProfilePage> {
                                           ),
                                   ),
 
-                                  // Preview actions
                                   Positioned(
                                     top: 5,
                                     right: 5,

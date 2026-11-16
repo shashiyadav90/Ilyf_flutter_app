@@ -16,11 +16,7 @@ class ComingSoonPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: background,
-
-      // Common ILYF header
       appBar: const AppHeader(),
-
-      // Common ILYF footer
       bottomNavigationBar: const BottomNav(isStaff: false),
 
       body: SafeArea(

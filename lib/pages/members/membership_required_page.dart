@@ -38,18 +38,12 @@ class MembershipRequiredPage extends StatelessWidget {
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final isWeb = constraints.maxWidth >= 800;
-
-                    // Desktop / Web layout
                     if (isWeb) {
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // LEFT SIDE: Membership upgrade box
                           Expanded(flex: 4, child: _upgradeCard(context)),
-
                           const SizedBox(width: 28),
-
-                          // RIGHT SIDE: Business listings and benefits
                           Expanded(
                             flex: 6,
                             child: Column(
@@ -113,8 +107,6 @@ class MembershipRequiredPage extends StatelessWidget {
                         ],
                       );
                     }
-
-                    // MOBILE / SMALL SCREEN layout
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

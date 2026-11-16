@@ -71,7 +71,6 @@ class _MembersPageState extends State<MembersPage> {
     super.dispose();
   }
 
-  // GET /api/businesses
   Future<List<Member>> _fetchMembers() async {
     final response = await ApiConfig.dio.get<dynamic>(directoryEndpoint);
 
@@ -109,7 +108,6 @@ class _MembersPageState extends State<MembersPage> {
         .toList();
   }
 
-  // GET /api/businesses/filters
   Future<List<String>> _fetchChapterFilters() async {
     final response = await ApiConfig.dio.get<dynamic>(filtersEndpoint);
 
@@ -152,7 +150,6 @@ class _MembersPageState extends State<MembersPage> {
         .toList();
   }
 
-  // Load directory and filters
   Future<void> _loadMembers() async {
     setState(() {
       _loading = true;
@@ -160,11 +157,7 @@ class _MembersPageState extends State<MembersPage> {
     });
 
     try {
-      // Fetch directory
       final loaded = await _fetchMembers();
-
-      // Fetch filters separately so directory still works
-      // if the filters endpoint fails.
       List<String> apiChapters = [];
 
       try {
@@ -191,8 +184,6 @@ class _MembersPageState extends State<MembersPage> {
           ...defaultChapters,
           ...allChapters.where((chapter) => !defaultChapters.contains(chapter)),
         ];
-
-        // Reset selection if it is no longer available.
         if (_selectedChapter != 'All' &&
             !_chapters.contains(_selectedChapter)) {
           _selectedChapter = 'All';
@@ -227,7 +218,6 @@ class _MembersPageState extends State<MembersPage> {
     }
   }
 
-  // Local search and chapter filtering
   List<Member> get _visibleMembers {
     final query = _search.trim().toLowerCase();
 
@@ -289,8 +279,6 @@ class _MembersPageState extends State<MembersPage> {
         body: Center(child: CircularProgressIndicator(color: purple)),
       );
     }
-
-    // General members see the membership upgrade page.
     if (!_hasFullAccess) {
       return const MembershipRequiredPage();
     }

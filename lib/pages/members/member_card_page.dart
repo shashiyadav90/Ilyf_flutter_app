@@ -8,7 +8,6 @@ import '../../components/bottom_nav.dart';
 import '../../core/config/api_config.dart';
 import '../../main.dart';
 
-// API: GET /api/businesses/{id}
 class MemberCardPage extends StatefulWidget {
   const MemberCardPage({super.key, required this.id});
 
@@ -46,7 +45,6 @@ class _MemberCardPageState extends State<MemberCardPage> {
     }
   }
 
-  // GET /api/businesses/{id}
   Future<void> _loadMember() async {
     setState(() {
       _loading = true;

@@ -14,8 +14,6 @@ class MembershipPage extends StatefulWidget {
 }
 
 class _MembershipPageState extends State<MembershipPage> {
-  // IMPORTANT:
-  // Replace this with the actual endpoint provided by your backend team.
   static const String membershipSubmitEndpoint = '/membership/enquiries';
 
   static const Color purple = Color(0xFF7A4FD0);
@@ -85,8 +83,6 @@ class _MembershipPageState extends State<MembershipPage> {
       _type = type;
       _successMessage = null;
       _errorMessage = null;
-
-      // Clear values when switching membership types.
       for (final controller in _controllers.values) {
         controller.clear();
       }
@@ -172,8 +168,6 @@ class _MembershipPageState extends State<MembershipPage> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final isWeb = constraints.maxWidth >= 900;
-
-            // WEB / DESKTOP LAYOUT
             if (isWeb) {
               return SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(
@@ -193,7 +187,6 @@ class _MembershipPageState extends State<MembershipPage> {
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // LEFT SIDE: MEMBERSHIP DETAILS
                             Expanded(
                               flex: 11,
                               child: Padding(
@@ -222,8 +215,6 @@ class _MembershipPageState extends State<MembershipPage> {
                                 ),
                               ),
                             ),
-
-                            // RIGHT SIDE: APPLICATION FORM
                             Expanded(
                               flex: 9,
                               child: Container(
@@ -255,8 +246,6 @@ class _MembershipPageState extends State<MembershipPage> {
                 ),
               );
             }
-
-            // MOBILE / TABLET LAYOUT
             return SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(18, 16, 18, 30),
               child: Center(

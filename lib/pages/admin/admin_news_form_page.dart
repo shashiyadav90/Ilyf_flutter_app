@@ -28,11 +28,9 @@ class _AdminNewsFormPageState extends State<AdminNewsFormPage> {
   static const Color canvas = Color(0xFFF4EFFF);
   static const Color rose = Color(0xFFE8447F);
 
-  // Verify these endpoints against your React api.js.
   static const String myNewsEndpoint = '/me/news';
   static const String newsEndpoint = '/me/news';
 
-  // Replace with the actual MEDIA_LIMITS.image size.
   static const int maxBannerBytes = 5 * 1024 * 1024;
 
   final _formKey = GlobalKey<FormState>();

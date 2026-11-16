@@ -90,15 +90,8 @@ class _OffersPageState extends State<OffersPage> {
 
     try {
       final response = await ApiConfig.dio.get('/offers');
-
-      debugPrint('========== OFFERS API ==========');
-      debugPrint('STATUS: ${response.statusCode}');
-      debugPrint('RESPONSE TYPE: ${response.data.runtimeType}');
-      debugPrint('RESPONSE DATA: ${response.data}');
-
       dynamic data = response.data;
 
-      // Handle JSON returned as a string.
       if (data is String) {
         data = jsonDecode(data);
       }
@@ -237,10 +230,6 @@ class _OffersPageState extends State<OffersPage> {
   Future<void> _fetchMyOffers() async {
     try {
       final response = await ApiConfig.dio.get('/me/offers');
-      debugPrint('========== SAVED OFFERS API ==========');
-      debugPrint('STATUS: ${response.statusCode}');
-      debugPrint('SAVED OFFERS RESPONSE: ${response.data}');
-
       final offers = _parseOfferList(response.data);
 
       if (!mounted) return;
@@ -1120,8 +1109,6 @@ class _OffersPageState extends State<OffersPage> {
                         : width >= 650
                         ? 2
                         : 1;
-
-                    // MOBILE: Cards take only the height they need.
                     if (crossAxisCount == 1) {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1137,8 +1124,6 @@ class _OffersPageState extends State<OffersPage> {
                         ),
                       );
                     }
-
-                    // WEB / TABLET: Equal-sized cards.
                     return GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),

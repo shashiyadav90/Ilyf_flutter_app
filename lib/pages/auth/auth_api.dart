@@ -78,10 +78,6 @@ class AuthApiDio implements AuthApi {
     }
   }
 
-  // ==========================================
-  // AUTHENTICATION
-  // ==========================================
-
   // POST /auth/otp/send
   @override
   Future<Map<String, dynamic>> sendOtp(String phone) {
@@ -141,9 +137,7 @@ class AuthApiDio implements AuthApi {
           extra: {'requiresAuth': false, 'skipAuthRefresh': true},
         ),
       );
-    } catch (_) {
-      // Local logout should still complete.
-    }
+    } catch (_) {}
   }
 
   // ==========================================

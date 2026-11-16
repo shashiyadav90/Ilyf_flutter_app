@@ -74,7 +74,6 @@ class _OverviewPageState extends State<OverviewPage> {
     return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
-  // RESPONSIVE BREAKPOINTS
   bool _isMobile(double width) => width < 600;
 
   bool _isTablet(double width) => width >= 600 && width < 1100;
@@ -658,7 +657,6 @@ class _OverviewPageState extends State<OverviewPage> {
   }
 
   Future<void> _fetchOverview() async {
-    // 1. Check whether the user is logged in.
     if (!authService.isLoggedIn) {
       if (mounted) {
         setState(() {
@@ -673,7 +671,6 @@ class _OverviewPageState extends State<OverviewPage> {
       return;
     }
 
-    // 2. Show loading indicator.
     if (mounted) {
       setState(() {
         _loading = true;
@@ -682,7 +679,6 @@ class _OverviewPageState extends State<OverviewPage> {
     }
 
     try {
-      // 3. Fetch Overview API.
       final response = await ApiConfig.dio.get<dynamic>('/overview');
 
       final data = response.data;
@@ -691,7 +687,6 @@ class _OverviewPageState extends State<OverviewPage> {
         throw Exception('Invalid overview response from server.');
       }
 
-      // 4. Update Overview data.
       if (!mounted) return;
 
       setState(() {
@@ -704,13 +699,11 @@ class _OverviewPageState extends State<OverviewPage> {
     } on DioException catch (e) {
       if (!mounted) return;
 
-      // 5. If session expired, redirect to login.
       if (e.response?.statusCode == 401) {
         context.go('/login?next=/overview');
         return;
       }
 
-      // 6. Handle other API errors.
       setState(() {
         _loading = false;
         _error = e.response?.data is Map
@@ -723,7 +716,6 @@ class _OverviewPageState extends State<OverviewPage> {
     } catch (e) {
       if (!mounted) return;
 
-      // 7. Handle unexpected errors.
       setState(() {
         _loading = false;
         _error = 'Unable to load overview. Please try again.';
@@ -770,27 +762,22 @@ class _OverviewPageState extends State<OverviewPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                // GREETING
                                 _greetingSection(),
 
                                 SizedBox(height: isMobile ? 16 : 24),
 
-                                // STORIES
                                 _storiesSection(),
 
                                 SizedBox(height: isMobile ? 20 : 28),
 
-                                // STATISTICS
                                 _statisticsSection(),
 
                                 SizedBox(height: isMobile ? 20 : 28),
 
-                                // ACTIVITY CHART
                                 _activitySection(),
 
                                 SizedBox(height: isMobile ? 20 : 28),
 
-                                // ENQUIRIES + OFFERS
                                 if (isDesktop)
                                   Row(
                                     crossAxisAlignment:
@@ -851,7 +838,6 @@ class _OverviewPageState extends State<OverviewPage> {
     );
   }
 
-  // GREETING SECTION
   Widget _greetingSection() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 0, 0, 18),
@@ -983,7 +969,6 @@ class _OverviewPageState extends State<OverviewPage> {
     );
   }
 
-  // STORIES SECTION
   Widget _storiesSection() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 8, 18, 4),
@@ -1117,7 +1102,6 @@ class _OverviewPageState extends State<OverviewPage> {
     );
   }
 
-  // STATISTICS SECTION
   Widget _statisticsSection() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 18),
@@ -1266,7 +1250,6 @@ class _OverviewPageState extends State<OverviewPage> {
     );
   }
 
-  // ACTIVITY GRAPH
   Widget _activitySection() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
@@ -1366,7 +1349,6 @@ class _OverviewPageState extends State<OverviewPage> {
     );
   }
 
-  // RECENT ENQUIRIES FROM OVERVIEW API
   Widget _enquiriesSection() {
     final items = _recentEnquiries;
     return Padding(
@@ -1550,7 +1532,6 @@ class _OverviewPageState extends State<OverviewPage> {
     );
   }
 
-  // LATEST OFFERS FROM OVERVIEW API
   Widget _offersSection() {
     final items = _latestOffers;
     return Padding(
@@ -1692,7 +1673,6 @@ class _OverviewPageState extends State<OverviewPage> {
     );
   }
 
-  // COMMON SECTION HEADING
   Widget _sectionHeading(
     String title,
     String subtitle, {
@@ -1812,9 +1792,7 @@ class _StoryListDialogState extends State<_StoryListDialog> {
 
     try {
       await callback(storyId);
-    } catch (_) {
-      // Story viewing should continue even if view tracking fails.
-    }
+    } catch (_) {}
   }
 
   Future<void> _loadVideo() async {
@@ -1839,9 +1817,7 @@ class _StoryListDialogState extends State<_StoryListDialog> {
       await controller.initialize();
       await controller.setLooping(true);
       await controller.play();
-    } catch (_) {
-      // An unavailable-media message is shown in the viewer.
-    }
+    } catch (_) {}
 
     if (mounted) setState(() {});
   }
@@ -2003,8 +1979,6 @@ class _StoryListDialogState extends State<_StoryListDialog> {
                 ],
               ),
             ),
-            // Story caption
-            // Story caption
             if (story.caption != null && story.caption!.isNotEmpty)
               Positioned(
                 left: 16,
@@ -2021,8 +1995,6 @@ class _StoryListDialogState extends State<_StoryListDialog> {
                   ),
                 ),
               ),
-
-            // Story views
             if (widget.onShowStoryViews != null)
               Positioned(
                 left: 16,
@@ -2064,7 +2036,6 @@ class _StoryListDialogState extends State<_StoryListDialog> {
                 ),
               ),
 
-            // Previous / next story navigation
             Row(
               children: [
                 Expanded(
@@ -2082,7 +2053,6 @@ class _StoryListDialogState extends State<_StoryListDialog> {
               ],
             ),
 
-            // 5. Story views - MUST BE AFTER NAVIGATION
             if (widget.onShowStoryViews != null)
               Positioned(
                 left: 16,
@@ -2130,7 +2100,6 @@ class _StoryListDialogState extends State<_StoryListDialog> {
   }
 }
 
-// Activity chart painter
 class _ActivityChartPainter extends CustomPainter {
   final List<double> values;
   final List<String> labels;

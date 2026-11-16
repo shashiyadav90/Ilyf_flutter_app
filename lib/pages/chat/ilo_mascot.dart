@@ -48,7 +48,6 @@ const List<Color> _confettiColors = [
   Color(0xFF5B8CFF),
 ];
 
-// Resting pose. Every mood only lists what differs from it.
 const Map<String, double> _base = {
   'eyeL': 1,
   'eyeR': 1,
@@ -296,9 +295,6 @@ const List<String> _propNames = [
   'zzz',
 ];
 
-// ---------------------------------------------------------------------------
-// Engine: smooths the pose toward the current mood and runs the physics.
-// ---------------------------------------------------------------------------
 class _Part {
   double x = 0, y = 0, vx = 0, vy = 0, rot = 0, vr = 0, life = 0, max = 1;
   Color color = Colors.white;
@@ -322,12 +318,12 @@ class _IloEngine extends ChangeNotifier {
   final List<_Part> parts = [];
   Color bulb = _mint;
 
-  Offset? pointer; // normalised -1..1 relative to the mascot, or null
+  Offset? pointer;
   double t = 0;
-  double motion = 1; // 0.25 when the user asked for reduced motion
-  double pk = 0; // poke spring position
-  double pv = 0; // poke spring velocity
-  double open = 1; // blink amount applied to the eyes
+  double motion = 1;
+  double pk = 0;
+  double pv = 0;
+  double open = 1;
   double _last = -1;
   double _blinkAt = 2;
   double _blinkStart = -9;
@@ -377,7 +373,6 @@ class _IloEngine extends ChangeNotifier {
       cur[key] = c + (v - c) * k;
     });
 
-    // blink
     if (t > _blinkAt && cur['lid']! < 0.2 && cur['happy']! < 0.5) {
       _blinkStart = t;
       _blinkAt = t + 2.4 + _rand.nextDouble() * 2.8;
@@ -387,23 +382,19 @@ class _IloEngine extends ChangeNotifier {
     );
     open = 1 - blink * 0.92;
 
-    // poke spring
     pv += (-170 * pk - 11 * pv) * dt;
     pk += pv * dt;
 
-    // antenna light
     final tb =
         spec.bulb ?? _confettiColors[(t * 5).floor() % _confettiColors.length];
     bulb = Color.lerp(bulb, tb, k) ?? tb;
 
-    // props fade in and out
     for (final n in _propNames) {
       final want = spec.props.contains(n) ? 1.0 : 0.0;
       final v = propV[n] ?? 0;
       propV[n] = v + (want - v) * k;
     }
 
-    // confetti
     for (final p in parts) {
       if (p.life <= 0) continue;
       p.life -= dt;
@@ -418,9 +409,6 @@ class _IloEngine extends ChangeNotifier {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Widgets
-// ---------------------------------------------------------------------------
 class IloMascot extends StatefulWidget {
   const IloMascot({
     super.key,
@@ -431,11 +419,9 @@ class IloMascot extends StatefulWidget {
     this.semanticLabel = 'Ilo, your AI assistant',
   });
 
-  /// Width and height of the whole drawing, rings included.
   final double size;
   final IloMood mood;
 
-  /// Global pointer position the eyes should follow (null = look around idly).
   final ValueListenable<Offset?>? pointer;
   final VoidCallback? onTap;
   final String semanticLabel;
@@ -515,7 +501,6 @@ class _IloMascotState extends State<IloMascot>
   }
 }
 
-/// A small, still version of Ilo's face for chat bubbles.
 class IloAvatar extends StatelessWidget {
   const IloAvatar({super.key, this.size = 28});
 
@@ -589,9 +574,6 @@ class _AvatarPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// ---------------------------------------------------------------------------
-// Painter (everything is drawn in a 400 x 400 space)
-// ---------------------------------------------------------------------------
 final Map<String, TextPainter> _textCache = {};
 
 class _IloPainter extends CustomPainter {
@@ -952,7 +934,6 @@ class _IloPainter extends CustomPainter {
     canvas.restore();
   }
 
-  // ---- props ----
   void _withAlpha(Canvas canvas, double a, VoidCallback draw) {
     if (a < 0.01) return;
     if (a > 0.99) {

@@ -231,20 +231,14 @@ class _AdminMemberFormPageState extends State<AdminMemberFormPage> {
         _nameController.text = user['fullName']?.toString() ?? '';
         _businessController.text = user['businessName']?.toString() ?? '';
         _emailController.text = user['email']?.toString() ?? '';
-
-        // This conversion assumes the stored number has the
-        // country dial code followed by the national number.
         _phoneController.text = digits.length >= 10
             ? digits.substring(digits.length - 10)
             : digits;
-
         _role = _roleFromKind(user['kind']);
         _membershipType = membershipType;
-
         _chapterId = chapter is Map
             ? chapter['id']?.toString() ?? defaultChapter
             : defaultChapter;
-
         _memberSince = startDate;
         _validUntil = endDate;
       } else {

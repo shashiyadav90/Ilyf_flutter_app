@@ -1,4 +1,3 @@
-
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
@@ -37,10 +36,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
     _loadDashboard();
   }
 
-  // ------------------------------------------------------------
-  // API RESPONSE HELPERS
-  // ------------------------------------------------------------
-
   Map<String, dynamic> _toMap(dynamic value) {
     if (value is Map<String, dynamic>) return value;
 
@@ -57,7 +52,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
   ) {
     dynamic data = response;
 
-    // Handle nested API response structures.
     for (int i = 0; i < 4; i++) {
       if (data is List) {
         return data
@@ -122,10 +116,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
     return '$day/$month/${date.year}';
   }
 
-  // ------------------------------------------------------------
-  // API INTEGRATION
-  // ------------------------------------------------------------
-
   Future<void> _loadDashboard() async {
     if (!mounted) return;
 
@@ -155,13 +145,11 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
   Future<void> _loadBusinesses() async {
     try {
-      final response =
-          await ApiConfig.dio.get<dynamic>('/businesses');
+      final response = await ApiConfig.dio.get<dynamic>('/businesses');
 
       _businesses = _extractRows(response.data, 'businesses');
     } on DioException catch (e) {
-      _errors['Businesses'] =
-          _apiError(e, 'Could not load businesses.');
+      _errors['Businesses'] = _apiError(e, 'Could not load businesses.');
     } catch (e) {
       _errors['Businesses'] = e.toString();
     }
@@ -169,8 +157,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
   Future<void> _loadOffers() async {
     try {
-      final response =
-          await ApiConfig.dio.get<dynamic>('/offers');
+      final response = await ApiConfig.dio.get<dynamic>('/offers');
 
       _offers = _extractRows(response.data, 'offers');
     } on DioException catch (e) {
@@ -182,8 +169,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
   Future<void> _loadEvents() async {
     try {
-      final response =
-          await ApiConfig.dio.get<dynamic>('/events');
+      final response = await ApiConfig.dio.get<dynamic>('/events');
 
       _events = _extractRows(response.data, 'events');
     } on DioException catch (e) {
@@ -195,8 +181,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
   Future<void> _loadNews() async {
     try {
-      final response =
-          await ApiConfig.dio.get<dynamic>('/news');
+      final response = await ApiConfig.dio.get<dynamic>('/news');
 
       _news = _extractRows(response.data, 'news');
     } on DioException catch (e) {
@@ -216,10 +201,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
     return e.message ?? fallback;
   }
 
-  // ------------------------------------------------------------
-  // BUILD
-  // ------------------------------------------------------------
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -234,9 +215,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: const [
                   SizedBox(height: 250),
-                  Center(
-                    child: CircularProgressIndicator(color: purple),
-                  ),
+                  Center(child: CircularProgressIndicator(color: purple)),
                 ],
               )
             : _buildDashboard(),
@@ -267,8 +246,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
                   const SizedBox(height: 24),
 
-                  if (_generalError != null)
-                    _errorBanner(_generalError!),
+                  if (_generalError != null) _errorBanner(_generalError!),
 
                   _buildStats(isMobile),
 
@@ -287,7 +265,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
                   _sectionHeading(
                     'Latest content',
-                    'Records currently available from the APIs',
+                    'Records currently available from the Data',
                   ),
 
                   const SizedBox(height: 14),
@@ -298,7 +276,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
 
                   Center(
                     child: Text(
-                      'ILYF Connect · Live API dashboard',
+                      'ILYF Connect · Live dashboard',
                       style: TextStyle(
                         color: muted.withValues(alpha: 0.8),
                         fontSize: 11,
@@ -314,10 +292,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
     );
   }
 
-  // ------------------------------------------------------------
-  // HEADER
-  // ------------------------------------------------------------
-
   Widget _header(bool isMobile) {
     return Container(
       width: double.infinity,
@@ -325,11 +299,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
         gradient: const LinearGradient(
-          colors: [
-            Color(0xFF21104F),
-            Color(0xFF4B27A3),
-            Color(0xFF7652D8),
-          ],
+          colors: [Color(0xFF21104F), Color(0xFF4B27A3), Color(0xFF7652D8)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -359,10 +329,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
               IconButton(
                 tooltip: 'Refresh dashboard',
                 onPressed: _loading ? null : _loadDashboard,
-                icon: const Icon(
-                  Icons.refresh,
-                  color: Colors.white,
-                ),
+                icon: const Icon(Icons.refresh, color: Colors.white),
               ),
             ],
           ),
@@ -383,11 +350,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
           const Text(
             'Monitor businesses, offers, events and news '
             'using live application data.',
-            style: TextStyle(
-              color: Colors.white70,
-              height: 1.5,
-              fontSize: 13,
-            ),
+            style: TextStyle(color: Colors.white70, height: 1.5, fontSize: 13),
           ),
 
           const SizedBox(height: 17),
@@ -480,11 +443,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
               color: stat.color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(13),
             ),
-            child: Icon(
-              stat.icon,
-              color: stat.color,
-              size: 23,
-            ),
+            child: Icon(stat.icon, color: stat.color, size: 23),
           ),
 
           const SizedBox(width: 14),
@@ -496,10 +455,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
               children: [
                 Text(
                   stat.label,
-                  style: const TextStyle(
-                    color: muted,
-                    fontSize: 12,
-                  ),
+                  style: const TextStyle(color: muted, fontSize: 12),
                 ),
 
                 const SizedBox(height: 6),
@@ -514,7 +470,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                 ),
 
                 Text(
-                  failed ? 'API unavailable' : 'Records received',
+                  failed ? 'Data unavailable' : 'Records received',
                   style: TextStyle(
                     color: failed ? Colors.red : muted,
                     fontSize: 10,
@@ -527,10 +483,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
       ),
     );
   }
-
-  // ------------------------------------------------------------
-  // COLLECTIONS
-  // ------------------------------------------------------------
 
   Widget _buildCollections(bool isMobile) {
     final collections = [
@@ -640,10 +592,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
     );
   }
 
-  // ------------------------------------------------------------
-  // LATEST CONTENT
-  // ------------------------------------------------------------
-
   Widget _buildContentSections(bool isMobile) {
     return Column(
       children: [
@@ -652,15 +600,14 @@ class _AdminHomePageState extends State<AdminHomePage> {
           icon: Icons.business_outlined,
           items: _businesses,
           endpoint: 'Businesses',
-          getTitle: (item) => _value(
-            item,
-            ['name', 'businessName', 'fullName', 'title'],
-            fallback: 'Business',
-          ),
-          getSubtitle: (item) => _value(
-            item,
-            ['category', 'city', 'location', 'chapterName'],
-          ),
+          getTitle: (item) => _value(item, [
+            'name',
+            'businessName',
+            'fullName',
+            'title',
+          ], fallback: 'Business'),
+          getSubtitle: (item) =>
+              _value(item, ['category', 'city', 'location', 'chapterName']),
         ),
 
         _contentCard(
@@ -668,15 +615,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
           icon: Icons.local_offer_outlined,
           items: _offers,
           endpoint: 'Offers',
-          getTitle: (item) => _value(
-            item,
-            ['title', 'name'],
-            fallback: 'Offer',
-          ),
-          getSubtitle: (item) => _value(
-            item,
-            ['description', 'businessName', 'status'],
-          ),
+          getTitle: (item) =>
+              _value(item, ['title', 'name'], fallback: 'Offer'),
+          getSubtitle: (item) =>
+              _value(item, ['description', 'businessName', 'status']),
         ),
 
         _contentCard(
@@ -684,16 +626,10 @@ class _AdminHomePageState extends State<AdminHomePage> {
           icon: Icons.event_outlined,
           items: _events,
           endpoint: 'Events',
-          getTitle: (item) => _value(
-            item,
-            ['title', 'name'],
-            fallback: 'Event',
-          ),
+          getTitle: (item) =>
+              _value(item, ['title', 'name'], fallback: 'Event'),
           getSubtitle: (item) {
-            final date = _value(
-              item,
-              ['eventDate', 'startDate', 'createdAt'],
-            );
+            final date = _value(item, ['eventDate', 'startDate', 'createdAt']);
             return _formatDate(date);
           },
         ),
@@ -703,16 +639,13 @@ class _AdminHomePageState extends State<AdminHomePage> {
           icon: Icons.article_outlined,
           items: _news,
           endpoint: 'News',
-          getTitle: (item) => _value(
-            item,
-            ['title', 'name'],
-            fallback: 'News',
-          ),
+          getTitle: (item) => _value(item, ['title', 'name'], fallback: 'News'),
           getSubtitle: (item) {
-            final date = _value(
-              item,
-              ['startDate', 'createdAt', 'publishedAt'],
-            );
+            final date = _value(item, [
+              'startDate',
+              'createdAt',
+              'publishedAt',
+            ]);
             return _formatDate(date);
           },
         ),
@@ -756,10 +689,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
               ),
               Text(
                 '${items.length} records',
-                style: const TextStyle(
-                  color: muted,
-                  fontSize: 11,
-                ),
+                style: const TextStyle(color: muted, fontSize: 11),
               ),
             ],
           ),
@@ -767,15 +697,11 @@ class _AdminHomePageState extends State<AdminHomePage> {
           const SizedBox(height: 13),
 
           if (error != null)
-            _emptyContent(
-              'Could not load $endpoint',
-              error,
-              isError: true,
-            )
+            _emptyContent('Could not load $endpoint', error, isError: true)
           else if (latestItems.isEmpty)
             _emptyContent(
               'No $endpoint available',
-              'The API returned no records.',
+              'The data source returned no records.',
             )
           else
             ...latestItems.map((item) {
@@ -801,9 +727,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: line),
-        ),
+        border: Border(bottom: BorderSide(color: line)),
       ),
       child: Row(
         children: [
@@ -814,11 +738,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
               color: background,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(
-              icon,
-              color: purple,
-              size: 18,
-            ),
+            child: Icon(icon, color: purple, size: 18),
           ),
 
           const SizedBox(width: 12),
@@ -844,10 +764,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
                     subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: muted,
-                      fontSize: 10,
-                    ),
+                    style: const TextStyle(color: muted, fontSize: 10),
                   ),
                 ],
               ],
@@ -869,9 +786,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
         child: Column(
           children: [
             Icon(
-              isError
-                  ? Icons.cloud_off_outlined
-                  : Icons.inbox_outlined,
+              isError ? Icons.cloud_off_outlined : Icons.inbox_outlined,
               size: 30,
               color: isError ? Colors.red : muted,
             ),
@@ -888,20 +803,13 @@ class _AdminHomePageState extends State<AdminHomePage> {
             Text(
               description,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: muted,
-                fontSize: 10,
-              ),
+              style: const TextStyle(color: muted, fontSize: 10),
             ),
           ],
         ),
       ),
     );
   }
-
-  // ------------------------------------------------------------
-  // COMMON WIDGETS
-  // ------------------------------------------------------------
 
   Widget _sectionHeading(String title, String subtitle) {
     return Column(
@@ -916,13 +824,7 @@ class _AdminHomePageState extends State<AdminHomePage> {
           ),
         ),
         const SizedBox(height: 5),
-        Text(
-          subtitle,
-          style: const TextStyle(
-            color: muted,
-            fontSize: 11,
-          ),
-        ),
+        Text(subtitle, style: const TextStyle(color: muted, fontSize: 11)),
       ],
     );
   }
@@ -938,24 +840,15 @@ class _AdminHomePageState extends State<AdminHomePage> {
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.error_outline,
-            color: Colors.red,
-          ),
+          const Icon(Icons.error_outline, color: Colors.red),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(
-                color: Colors.red,
-                fontSize: 12,
-              ),
+              style: const TextStyle(color: Colors.red, fontSize: 12),
             ),
           ),
-          TextButton(
-            onPressed: _loadDashboard,
-            child: const Text('Retry'),
-          ),
+          TextButton(onPressed: _loadDashboard, child: const Text('Retry')),
         ],
       ),
     );
@@ -977,10 +870,6 @@ class _AdminHomePageState extends State<AdminHomePage> {
   }
 }
 
-// ------------------------------------------------------------
-// DATA MODELS
-// ------------------------------------------------------------
-
 class _StatData {
   final String label;
   final int count;
@@ -988,13 +877,7 @@ class _StatData {
   final Color color;
   final String endpoint;
 
-  const _StatData(
-    this.label,
-    this.count,
-    this.icon,
-    this.color,
-    this.endpoint,
-  );
+  const _StatData(this.label, this.count, this.icon, this.color, this.endpoint);
 }
 
 class _CollectionData {

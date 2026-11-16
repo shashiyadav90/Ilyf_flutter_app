@@ -141,7 +141,6 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      // IMPORTANT: Update the central authentication session.
       final member = await authService.loginWithOtp(_fullPhone, otp);
 
       if (!mounted) return;
@@ -152,8 +151,6 @@ class _LoginPageState extends State<LoginPage> {
         });
         return;
       }
-
-      // Navigate to the originally requested page.
       context.go(_nextRoute);
     } on DioException catch (e) {
       if (mounted) {
@@ -220,8 +217,6 @@ class _LoginPageState extends State<LoginPage> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final isWeb = constraints.maxWidth >= 900;
-
-            // WEB: Login information on the left, form on the right.
             if (isWeb) {
               return LayoutBuilder(
                 builder: (context, webConstraints) {
@@ -267,7 +262,6 @@ class _LoginPageState extends State<LoginPage> {
               );
             }
 
-            // MOBILE/TABLET: Keep the existing layout.
             return SingleChildScrollView(
               child: ConstrainedBox(
                 constraints: BoxConstraints(minHeight: constraints.maxHeight),

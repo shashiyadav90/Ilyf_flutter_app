@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../components/app_header.dart';
 import '../../components/bottom_nav.dart';
+import '../../core/config/api_config.dart';
 import '../../data/repositories/inquiry_chat_repository.dart';
 import '../chat/ilo_mascot.dart';
 import '../../main.dart';
+import 'enquiries_list_dialog.dart';
 
 const Color _ink = Color(0xFF211C45);
 const Color _inkSecondary = Color(0xFF6A6685);
@@ -89,6 +91,8 @@ class _ChatPageState extends State<ChatPage> {
   bool _begun = false;
   bool _loading = false;
   String _input = '';
+  int _enquiriesTotal = 0;
+  bool _enquiriesCountLoading = true;
 
   bool get _started => _messages.isNotEmpty;
 
@@ -102,6 +106,41 @@ class _ChatPageState extends State<ChatPage> {
   void initState() {
     super.initState();
     _inputFocus.addListener(_onFocusChange);
+
+    _loadEnquiriesCount();
+  }
+
+  Future<void> _loadEnquiriesCount() async {
+    try {
+      final response = await ApiConfig.dio.get(
+        '/enquiries',
+        queryParameters: {'limit': 10, 'offset': 0},
+      );
+
+      final responseData = response.data;
+
+      if (responseData is Map) {
+        final total = responseData['total'];
+
+        if (!mounted) return;
+
+        setState(() {
+          _enquiriesTotal = total is num
+              ? total.toInt()
+              : int.tryParse(total?.toString() ?? '') ?? 0;
+
+          _enquiriesCountLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('ENQUIRIES COUNT ERROR: $e');
+
+      if (!mounted) return;
+
+      setState(() {
+        _enquiriesCountLoading = false;
+      });
+    }
   }
 
   void _onFocusChange() {
@@ -155,9 +194,10 @@ class _ChatPageState extends State<ChatPage> {
       if (!mounted) return;
 
       final inquiryData = result['inquiry'];
-      final inquiry = inquiryData is Map
-          ? Map<String, dynamic>.from(inquiryData)
-          : null;
+      Map<String, dynamic>? inquiry;
+      if (inquiryData is Map) {
+        inquiry = Map<String, dynamic>.from(inquiryData);
+      }
 
       final status = inquiry?['status']?.toString().toLowerCase();
       final clarification = inquiry?['clarification'];
@@ -240,15 +280,6 @@ class _ChatPageState extends State<ChatPage> {
           content: Text('$feature is coming soon.'),
         ),
       );
-  }
-
-  void _openMenu(BuildContext scaffoldContext) {
-    final scaffold = Scaffold.maybeOf(scaffoldContext);
-    if (scaffold != null && scaffold.hasDrawer) {
-      scaffold.openDrawer();
-      return;
-    }
-    if (scaffoldContext.canPop()) scaffoldContext.pop();
   }
 
   String _displayValue(dynamic value, {String fallback = ''}) {
@@ -334,8 +365,6 @@ class _ChatPageState extends State<ChatPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWeb = constraints.maxWidth >= 800;
-
-        // WEB LAYOUT
         if (isWeb) {
           return SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
@@ -346,7 +375,6 @@ class _ChatPageState extends State<ChatPage> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // LEFT SIDE: BRAND AND LET'S BEGIN
                   Expanded(
                     flex: 5,
                     child: Padding(
@@ -368,7 +396,6 @@ class _ChatPageState extends State<ChatPage> {
                     ),
                   ),
 
-                  // RIGHT SIDE: WELCOME AND ANIMATED AI
                   Expanded(
                     flex: 5,
                     child: Column(
@@ -410,7 +437,6 @@ class _ChatPageState extends State<ChatPage> {
           );
         }
 
-        // MOBILE / TABLET LAYOUT: KEEP VERTICAL DESIGN
         return SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
           child: ConstrainedBox(
@@ -576,101 +602,142 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  Widget _buildChatShell() {
-    return Column(
-      children: [
-        Expanded(child: _started ? _buildConversation() : _buildStart()),
-        _buildComposer(),
-      ],
-    );
-  }
-
-  Widget _buildTopBar() {
+  Widget _buildEnquiriesShortcut() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 96,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Builder(
-                builder: (scaffoldContext) => _squareButton(
-                  icon: Icons.menu_rounded,
-                  tooltip: 'Menu',
-                  onTap: () => _openMenu(scaffoldContext),
-                ),
-              ),
-            ),
-          ),
-          const Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'ILYF Connect',
-                  style: TextStyle(
-                    color: _ink,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'Your community, connected',
-                  style: TextStyle(color: _inkSecondary, fontSize: 11),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(
-            width: 96,
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: _loading ? null : _resetChat,
-                icon: const Icon(Icons.edit_note_rounded, size: 19),
-                label: const Text('New chat'),
-                style: TextButton.styleFrom(
-                  foregroundColor: _violet,
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  textStyle: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1054),
+          child: SizedBox(
+            width: double.infinity,
+            child: Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: () async {
+                  await showDialog(
+                    context: context,
+                    barrierDismissible: true,
+                    builder: (_) => const EnquiriesListDialog(),
+                  );
 
-  Widget _squareButton({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onTap,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: _line),
+                  if (!mounted) return;
+                  _loadEnquiriesCount();
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: _line),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _violet.withValues(alpha: 0.06),
+                        blurRadius: 20,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: _tile,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(
+                          Icons.assignment_outlined,
+                          color: _violet,
+                          size: 22,
+                        ),
+                      ),
+
+                      const SizedBox(width: 14),
+
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Total Enquiries',
+                              style: TextStyle(
+                                color: _ink,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'View enquiry history',
+                              style: TextStyle(
+                                color: _inkSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      if (_enquiriesCountLoading)
+                        const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: _violet,
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _tile,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '$_enquiriesTotal',
+                            style: const TextStyle(
+                              color: _violet,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+
+                      const SizedBox(width: 12),
+
+                      const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: _inkSecondary,
+                        size: 23,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
-            child: Icon(icon, size: 21, color: _ink),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildChatShell() {
+    return Column(
+      children: [
+        _buildEnquiriesShortcut(),
+        Expanded(child: _started ? _buildConversation() : _buildStart()),
+        _buildComposer(),
+      ],
     );
   }
 
@@ -678,8 +745,6 @@ class _ChatPageState extends State<ChatPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWeb = constraints.maxWidth >= 800;
-
-        // WEB LAYOUT
         if (isWeb) {
           return SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(40, 24, 40, 20),
@@ -690,7 +755,6 @@ class _ChatPageState extends State<ChatPage> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // LEFT SIDE: HEADING AND SUGGESTION CARDS
                   Expanded(
                     flex: 6,
                     child: Padding(
@@ -748,8 +812,6 @@ class _ChatPageState extends State<ChatPage> {
                       ),
                     ),
                   ),
-
-                  // RIGHT SIDE: ANIMATED AI
                   Expanded(
                     flex: 4,
                     child: Center(
@@ -761,8 +823,6 @@ class _ChatPageState extends State<ChatPage> {
             ),
           );
         }
-
-        // MOBILE / TABLET LAYOUT: KEEP EXISTING DESIGN
         return SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
             MediaQuery.sizeOf(context).width < 600 ? 16 : 32,

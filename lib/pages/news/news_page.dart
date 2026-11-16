@@ -57,7 +57,6 @@ class _NewsPageState extends State<NewsPage> {
         return;
       }
 
-      // Restrict General users from News and Events.
       if (!_hasFullAccess) {
         return;
       }
@@ -224,7 +223,6 @@ class _NewsPageState extends State<NewsPage> {
     setState(() => _busy = true);
 
     try {
-      // Confirm the endpoint against your Events Swagger documentation.
       await _dio.delete('/me/events/$id');
 
       await _loadEvents();
@@ -372,8 +370,6 @@ class _NewsPageState extends State<NewsPage> {
         body: Center(child: CircularProgressIndicator(color: _violet)),
       );
     }
-
-    // Show membership-required screen for General users.
     if (!_hasFullAccess) {
       return const MembershipRequiredPage();
     }
@@ -389,13 +385,8 @@ class _NewsPageState extends State<NewsPage> {
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
-            // Admin hero section
             SliverToBoxAdapter(child: _hero()),
-
-            // News and Events tabs
             SliverToBoxAdapter(child: _tabBar()),
-
-            // Scrollable page content
             SliverToBoxAdapter(
               child: _tab == 0 ? _newsBodyContent() : _eventsBodyContent(),
             ),
@@ -1250,8 +1241,6 @@ class _NewsPageState extends State<NewsPage> {
                     hasTime: _hasTime(event),
                     onOpen: _openUrl,
                     onCalendar: () => _calendar(event),
-
-                    // Admin controls
                     isStaff: _staff && !_busy,
                     onEdit: () {
                       final id = _id(event);
@@ -1415,7 +1404,6 @@ class _EventTile extends StatefulWidget {
   final ValueChanged<String> onOpen;
   final VoidCallback onCalendar;
 
-  // Admin controls
   final bool isStaff;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
