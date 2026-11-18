@@ -11,6 +11,7 @@ import '../../data/models/story_model.dart';
 import '../../services/story_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:video_player/video_player.dart';
+import '../members/membership_required_page.dart';
 
 class OverviewPage extends StatefulWidget {
   const OverviewPage({super.key});
@@ -38,6 +39,10 @@ class _OverviewPageState extends State<OverviewPage> {
   Map<String, dynamic> _overview = {};
   bool _loading = true;
   String? _error;
+
+  bool get _hasFullAccess {
+    return authService.member?.hasMembersDirectoryAccess ?? false;
+  }
 
   Map<String, dynamic> get _profile =>
       (_overview['profile'] as Map?)?.cast<String, dynamic>() ?? {};
@@ -671,6 +676,17 @@ class _OverviewPageState extends State<OverviewPage> {
       return;
     }
 
+    if (!_hasFullAccess) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = null;
+          _overview = {};
+        });
+      }
+      return;
+    }
+
     if (mounted) {
       setState(() {
         _loading = true;
@@ -733,6 +749,8 @@ class _OverviewPageState extends State<OverviewPage> {
         top: false,
         child: _loading
             ? const Center(child: CircularProgressIndicator(color: purple))
+            : !_hasFullAccess
+            ? const MembershipRequiredPage(embedded: true)
             : _error != null
             ? _errorView()
             : LayoutBuilder(
