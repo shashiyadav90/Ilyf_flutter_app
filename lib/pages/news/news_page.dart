@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../members/membership_required_page.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../components/app_header.dart';
@@ -41,10 +40,6 @@ class _NewsPageState extends State<NewsPage> {
   bool get _signedIn => authService.isLoggedIn;
   bool get _staff => authService.isStaff;
 
-  bool get _hasFullAccess {
-    return authService.member?.hasMembersDirectoryAccess ?? false;
-  }
-
   @override
   void initState() {
     super.initState();
@@ -54,10 +49,6 @@ class _NewsPageState extends State<NewsPage> {
 
       if (!_signedIn) {
         context.go('/login?next=/news');
-        return;
-      }
-
-      if (!_hasFullAccess) {
         return;
       }
 
@@ -110,7 +101,7 @@ class _NewsPageState extends State<NewsPage> {
   }
 
   Future<void> _loadNews() async {
-    if (!_signedIn || !_hasFullAccess) return;
+    if (!_signedIn) return;
     setState(() {
       _newsLoading = true;
       _newsError = null;
@@ -145,7 +136,7 @@ class _NewsPageState extends State<NewsPage> {
   }
 
   Future<void> _loadEvents() async {
-    if (!_signedIn || !_hasFullAccess) return;
+    if (!_signedIn) return;
     setState(() {
       _eventsLoading = true;
       _eventsError = null;
@@ -369,9 +360,6 @@ class _NewsPageState extends State<NewsPage> {
         backgroundColor: _mist,
         body: Center(child: CircularProgressIndicator(color: _violet)),
       );
-    }
-    if (!_hasFullAccess) {
-      return const MembershipRequiredPage();
     }
 
     return Scaffold(
