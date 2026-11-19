@@ -38,6 +38,36 @@ class _ProfilePageState extends State<ProfilePage> {
   final _facebook = TextEditingController();
   final _linkedin = TextEditingController();
   final _otp = TextEditingController();
+  final _profession = TextEditingController();
+  final _designation = TextEditingController();
+  final _dateOfBirth = TextEditingController();
+  final _anniversaryDate = TextEditingController();
+  final _spouseName = TextEditingController();
+  final _whatsappNumber = TextEditingController();
+  final _alternatePhone = TextEditingController();
+  final _nativePlace = TextEditingController();
+  final _education = TextEditingController();
+  final _languagesKnown = TextEditingController();
+  final _hobbies = TextEditingController();
+  final _bio = TextEditingController();
+
+  final _addressLine1 = TextEditingController();
+  final _addressArea = TextEditingController();
+  final _addressCity = TextEditingController();
+  final _addressState = TextEditingController();
+  final _addressPincode = TextEditingController();
+  final _addressCountry = TextEditingController();
+
+  final _emergencyName = TextEditingController();
+  final _emergencyRelation = TextEditingController();
+  final _emergencyPhone = TextEditingController();
+
+  final _personalLinkedin = TextEditingController();
+
+  String? _gender;
+  String _maritalStatus = 'UNMARRIED';
+  String? _bloodGroup;
+
   final Map<String, Uint8List> _localMediaPreviews = {};
 
   Map<String, dynamic>? _profile;
@@ -98,6 +128,28 @@ class _ProfilePageState extends State<ProfilePage> {
       _facebook,
       _linkedin,
       _otp,
+      _profession,
+      _designation,
+      _dateOfBirth,
+      _anniversaryDate,
+      _spouseName,
+      _whatsappNumber,
+      _alternatePhone,
+      _nativePlace,
+      _education,
+      _languagesKnown,
+      _hobbies,
+      _bio,
+      _addressLine1,
+      _addressArea,
+      _addressCity,
+      _addressState,
+      _addressPincode,
+      _addressCountry,
+      _emergencyName,
+      _emergencyRelation,
+      _emergencyPhone,
+      _personalLinkedin,
       _offerTitle,
       _offerDescription,
     ]) {
@@ -177,6 +229,12 @@ class _ProfilePageState extends State<ProfilePage> {
     if (data['data'] is Map && data['business'] == null)
       data = _map(data['data']);
     final business = _map(data['business']);
+    final personal = _map(data['personalDetails']);
+    final address = _map(personal['address']);
+    final emergency = _map(personal['emergencyContact']);
+    final personalLinks = personal['personalSocialLinks'] is List
+        ? personal['personalSocialLinks'] as List
+        : <dynamic>[];
     final links = business['socialLinks'] is List
         ? business['socialLinks'] as List
         : <dynamic>[];
@@ -195,6 +253,39 @@ class _ProfilePageState extends State<ProfilePage> {
     _instagram.text = _social(links, 'instagram');
     _facebook.text = _social(links, 'facebook');
     _linkedin.text = _social(links, 'linkedin');
+    _profession.text = _s(personal['profession']);
+    _designation.text = _s(personal['designation']);
+    _dateOfBirth.text = _s(personal['dateOfBirth']);
+    _anniversaryDate.text = _s(personal['anniversaryDate']);
+    _spouseName.text = _s(personal['spouseName']);
+    _whatsappNumber.text = _s(personal['whatsappNumber']);
+    _alternatePhone.text = _s(personal['alternatePhone']);
+    _nativePlace.text = _s(personal['nativePlace']);
+    _education.text = _s(personal['education']);
+    _languagesKnown.text = personal['languagesKnown'] is List
+        ? (personal['languagesKnown'] as List).join(', ')
+        : '';
+    _hobbies.text = personal['hobbies'] is List
+        ? (personal['hobbies'] as List).join(', ')
+        : '';
+    _bio.text = _s(personal['bio']);
+    _gender = _s(personal['gender']).isEmpty ? null : _s(personal['gender']);
+    _maritalStatus = _s(personal['maritalStatus']).isEmpty
+        ? 'UNMARRIED'
+        : _s(personal['maritalStatus']);
+    _bloodGroup = _s(personal['bloodGroup']).isEmpty
+        ? null
+        : _s(personal['bloodGroup']);
+    _addressLine1.text = _s(address['line1']);
+    _addressArea.text = _s(address['area']);
+    _addressCity.text = _s(address['city']);
+    _addressState.text = _s(address['state']);
+    _addressPincode.text = _s(address['pincode']);
+    _addressCountry.text = _s(address['country']);
+    _emergencyName.text = _s(emergency['name']);
+    _emergencyRelation.text = _s(emergency['relation']);
+    _emergencyPhone.text = _s(emergency['phone']);
+    _personalLinkedin.text = _social(personalLinks, 'linkedin');
     _offers = _list(data['offers']);
     _images = _normaliseMedia(business['images']);
     _documents = _normaliseMedia(business['documents']);
@@ -258,6 +349,56 @@ class _ProfilePageState extends State<ProfilePage> {
               .where((s) => s.isNotEmpty)
               .toList(),
           'socialLinks': links,
+          if (_profession.text.trim().isNotEmpty)
+            'personalDetails': {
+              'profession': _profession.text.trim(),
+              'designation': _designation.text.trim(),
+              'dateOfBirth': _dateOfBirth.text.trim().isEmpty
+                  ? null
+                  : _dateOfBirth.text.trim(),
+              'gender': _gender,
+              'maritalStatus': _maritalStatus,
+              'anniversaryDate': _anniversaryDate.text.trim().isEmpty
+                  ? null
+                  : _anniversaryDate.text.trim(),
+              'spouseName': _spouseName.text.trim(),
+              'bloodGroup': _bloodGroup,
+              'whatsappNumber': _whatsappNumber.text.trim(),
+              'alternatePhone': _alternatePhone.text.trim(),
+              'nativePlace': _nativePlace.text.trim(),
+              'education': _education.text.trim(),
+              'languagesKnown': _languagesKnown.text
+                  .split(',')
+                  .map((e) => e.trim())
+                  .where((e) => e.isNotEmpty)
+                  .toList(),
+              'hobbies': _hobbies.text
+                  .split(',')
+                  .map((e) => e.trim())
+                  .where((e) => e.isNotEmpty)
+                  .toList(),
+              'bio': _bio.text.trim(),
+              'address': {
+                'line1': _addressLine1.text.trim(),
+                'area': _addressArea.text.trim(),
+                'city': _addressCity.text.trim(),
+                'state': _addressState.text.trim(),
+                'pincode': _addressPincode.text.trim(),
+                'country': _addressCountry.text.trim(),
+              },
+              'emergencyContact': {
+                'name': _emergencyName.text.trim(),
+                'relation': _emergencyRelation.text.trim(),
+                'phone': _emergencyPhone.text.trim(),
+              },
+              'personalSocialLinks': [
+                if (_personalLinkedin.text.trim().isNotEmpty)
+                  {
+                    'platform': 'LinkedIn',
+                    'url': _personalLinkedin.text.trim(),
+                  },
+              ],
+            },
         },
       );
       final saved = _map(response.data);
@@ -1262,6 +1403,10 @@ class _ProfilePageState extends State<ProfilePage> {
                                       children: [
                                         SizedBox(
                                           width: cardWidth,
+                                          child: _personalDetailsCard(),
+                                        ),
+                                        SizedBox(
+                                          width: cardWidth,
                                           child: _aboutCard(),
                                         ),
                                         SizedBox(
@@ -1576,6 +1721,253 @@ class _ProfilePageState extends State<ProfilePage> {
     onPressed: () => setState(() => _editing = true),
     icon: const Icon(Icons.edit_outlined, color: purple),
   );
+
+  Widget _personalDetailsCard() => _card(
+    'Personal Details',
+    Icons.person_outline,
+    Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_editing) ...[
+          _field('Profession *', _profession),
+          _field('Designation', _designation),
+          Row(
+            children: [
+              Expanded(
+                child: _field(
+                  'Date of Birth (YYYY-MM-DD)',
+                  _dateOfBirth,
+                  keyboardType: TextInputType.datetime,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _field(
+                  'Anniversary Date (YYYY-MM-DD)',
+                  _anniversaryDate,
+                  keyboardType: TextInputType.datetime,
+                ),
+              ),
+            ],
+          ),
+
+          DropdownButtonFormField<String>(
+            value: _gender,
+            decoration: const InputDecoration(
+              labelText: 'Gender',
+              filled: true,
+            ),
+            items: [
+              'MALE',
+              'FEMALE',
+              'OTHER',
+            ].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+            onChanged: (v) => setState(() => _gender = v),
+          ),
+
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: _maritalStatus,
+            decoration: const InputDecoration(
+              labelText: 'Marital Status',
+              filled: true,
+            ),
+            items: [
+              'MARRIED',
+              'UNMARRIED',
+            ].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+            onChanged: (v) {
+              if (v != null) {
+                setState(() => _maritalStatus = v);
+              }
+            },
+          ),
+
+          const SizedBox(height: 12),
+          _field('Spouse Name', _spouseName),
+          DropdownButtonFormField<String>(
+            value: _bloodGroup,
+            decoration: const InputDecoration(
+              labelText: 'Blood Group',
+              filled: true,
+            ),
+            items: [
+              'A+',
+              'A-',
+              'B+',
+              'B-',
+              'AB+',
+              'AB-',
+              'O+',
+              'O-',
+            ].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+            onChanged: (v) => setState(() => _bloodGroup = v),
+          ),
+
+          const SizedBox(height: 12),
+          _field(
+            'WhatsApp Number',
+            _whatsappNumber,
+            keyboardType: TextInputType.phone,
+          ),
+          _field(
+            'Alternate Phone',
+            _alternatePhone,
+            keyboardType: TextInputType.phone,
+          ),
+          _field('Native Place', _nativePlace),
+          _field('Education', _education),
+          _field('Languages Known (comma separated)', _languagesKnown),
+          _field('Hobbies (comma separated)', _hobbies),
+          _field('About Me / Bio', _bio, maxLines: 4),
+
+          const SizedBox(height: 12),
+          const Text(
+            'Address',
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 15,
+              color: purpleDark,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _field('Address Line 1', _addressLine1),
+          _field('Area', _addressArea),
+          Row(
+            children: [
+              Expanded(child: _field('City', _addressCity)),
+              const SizedBox(width: 10),
+              Expanded(child: _field('State', _addressState)),
+            ],
+          ),
+          Row(
+            children: [
+              Expanded(child: _field('Pincode', _addressPincode)),
+              const SizedBox(width: 10),
+              Expanded(child: _field('Country', _addressCountry)),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+          const Text(
+            'Emergency Contact',
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 15,
+              color: purpleDark,
+            ),
+          ),
+
+          const SizedBox(height: 10),
+          _field('Contact Name', _emergencyName),
+          _field('Relationship', _emergencyRelation),
+          _field(
+            'Contact Phone',
+            _emergencyPhone,
+            keyboardType: TextInputType.phone,
+          ),
+
+          const SizedBox(height: 12),
+          const Text(
+            'Personal Social Links',
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 15,
+              color: purpleDark,
+            ),
+          ),
+
+          const SizedBox(height: 10),
+          _field(
+            'Personal LinkedIn URL',
+            _personalLinkedin,
+            keyboardType: TextInputType.url,
+          ),
+        ] else ...[
+          _detailRow('Profession', _profession.text),
+          _detailRow('Designation', _designation.text),
+          _detailRow('Date of Birth', _dateOfBirth.text),
+          _detailRow('Gender', _gender ?? ''),
+          _detailRow(
+            'Marital Status',
+            _maritalStatus == 'MARRIED' ? 'Married' : 'Unmarried',
+          ),
+          _detailRow('Anniversary', _anniversaryDate.text),
+          _detailRow('Spouse Name', _spouseName.text),
+          _detailRow('Blood Group', _bloodGroup ?? ''),
+          _detailRow('WhatsApp', _whatsappNumber.text),
+          _detailRow('Alternate Phone', _alternatePhone.text),
+          _detailRow('Native Place', _nativePlace.text),
+          _detailRow('Education', _education.text),
+          _detailRow('Languages', _languagesKnown.text),
+          _detailRow('Hobbies', _hobbies.text),
+          _detailRow('Bio', _bio.text),
+
+          const Divider(height: 24),
+          const Text(
+            'Address',
+            style: TextStyle(fontWeight: FontWeight.w800, color: purpleDark),
+          ),
+          _detailRow('Address Line', _addressLine1.text),
+          _detailRow('Area', _addressArea.text),
+          _detailRow('City', _addressCity.text),
+          _detailRow('State', _addressState.text),
+          _detailRow('Pincode', _addressPincode.text),
+          _detailRow('Country', _addressCountry.text),
+
+          const Divider(height: 24),
+          const Text(
+            'Emergency Contact',
+            style: TextStyle(fontWeight: FontWeight.w800, color: purpleDark),
+          ),
+          _detailRow('Name', _emergencyName.text),
+          _detailRow('Relation', _emergencyRelation.text),
+          _detailRow('Phone', _emergencyPhone.text),
+
+          _detailRow('Personal LinkedIn', _personalLinkedin.text),
+        ],
+        if (!_editing && _profession.text.trim().isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(top: 14),
+            child: Text(
+              'Personal details have not been added yet.',
+              style: TextStyle(color: muted),
+            ),
+          ),
+      ],
+    ),
+    trailing: _editButton(),
+  );
+
+  Widget _detailRow(String label, String value) {
+    if (value.trim().isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 115,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: muted,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(color: ink, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _aboutCard() => _card(
     'About your business',

@@ -139,6 +139,13 @@ class _OffersPageState extends State<OffersPage> {
 
       setState(() {
         _offers = fetchedOffers;
+        _liked
+          ..clear()
+          ..addAll(
+            fetchedOffers
+                .where((offer) => offer['likedByMe'] == true)
+                .map((offer) => _id(offer, 0)),
+          );
         _loading = false;
         _error = null;
       });
@@ -322,24 +329,58 @@ class _OffersPageState extends State<OffersPage> {
     final isLiked = _liked.contains(id);
 
     try {
-      if (isLiked) {
-        await ApiConfig.dio.delete('/offers/$id/like');
-      } else {
-        await ApiConfig.dio.post('/offers/$id/like');
-      }
+      final response = isLiked
+          ? await ApiConfig.dio.delete('/offers/$id/like')
+          : await ApiConfig.dio.post('/offers/$id/like');
 
       if (!mounted) return;
 
+      final updatedLiked = !isLiked;
+
       setState(() {
-        if (isLiked) {
-          _liked.remove(id);
-        } else {
+        if (updatedLiked) {
           _liked.add(id);
+        } else {
+          _liked.remove(id);
+        }
+
+        for (final offer in _offers) {
+          if (_id(offer, 0) == id) {
+            final currentCount = offer['likeCount'] is num
+                ? (offer['likeCount'] as num).toInt()
+                : 0;
+
+            offer['likeCount'] = updatedLiked
+                ? currentCount + 1
+                : (currentCount - 1).clamp(0, 999999);
+
+            offer['likedByMe'] = updatedLiked;
+          }
         }
       });
     } on DioException catch (e) {
       debugPrint('LIKE API ERROR: ${e.response?.data}');
       _showMessage('Unable to update like.');
+    }
+  }
+
+  Future<Map<String, dynamic>?> _fetchOfferLikes(String id) async {
+    try {
+      final response = await ApiConfig.dio.get('/offers/$id/likes');
+
+      final data = response.data;
+
+      if (data is Map) {
+        return Map<String, dynamic>.from(data);
+      }
+
+      return null;
+    } on DioException catch (e) {
+      debugPrint('GET OFFER LIKES ERROR: ${e.response?.data}');
+      debugPrint('STATUS: ${e.response?.statusCode}');
+
+      _showMessage('Unable to load offer likes.');
+      return null;
     }
   }
 
@@ -1457,12 +1498,13 @@ class _OffersPageState extends State<OffersPage> {
         offer['verified'] == true;
 
     final rawLikes =
-        offer['likesCount'] ??
         offer['likeCount'] ??
+        offer['likesCount'] ??
         (offer['likes'] is List ? (offer['likes'] as List).length : 0);
-    final likes =
-        (rawLikes is num ? rawLikes.toInt() : int.tryParse('$rawLikes') ?? 0) +
-        (_liked.contains(id) ? 1 : 0);
+
+    final likes = rawLikes is num
+        ? rawLikes.toInt()
+        : int.tryParse('$rawLikes') ?? 0;
 
     final rawComments =
         offer['commentsCount'] ??
